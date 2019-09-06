@@ -4,37 +4,67 @@ import multiprocessing as mp
 import os
 import glob
 
-def png_to_npy(files, output_dir):
+def drop_image(x, drop_threshold):
+    # count nonzero label
+    nonzero_pixel = np.count_nonzero(x)
+    rel_amount = nonzero_pixel / 250000    # images are 500x500
+
+    # maybe drop image
+    if rel_amount < drop_threshold:
+        return True
+    else:
+        return False
+        
+def convert_dataset(masks_fnames, output_masks_dir, output_frames_dir, drop_threshold=0.):
     '''
     Args: \n
-    :files: list of filenames to apply the conversion on. \n
-    :output_dir: output directory
+        :mask_fnames: list of mask locations. \n
+        :output_masks_dir: output directory for the masks \n
+        :output_frames_dir: output directory for the frames \n
+        :drop_threshold: minimum relative amount of nonzero pixels 
     '''
     
     reader = sitk.ImageFileReader()
     reader.SetImageIO("PNGImageIO")
 
-    for file in files:
-        # read in file
+    for file in masks_fnames:
+        # read in mask
         reader.SetFileName(file)
         image = reader.Execute()
 
         # get raw numpy array
         raw_arr = sitk.GetArrayFromImage(image)
 
-        # extract filename
-        new_filename = file.split('\\')[-1].replace(".png", ".npy")
+        # adjust labels to be 0, 1, 2
+        raw_arr[raw_arr == 26] = 0
+        raw_arr[raw_arr == 51] = 1
+        raw_arr[raw_arr == 77] = 2
 
-        # save as npy
-        np.save(os.path.join(output_dir, new_filename), raw_arr)
+        # if the mask is almost empty (i.e. the image is black) drop the image from the dataset
+        if drop_threshold > 0.:
+            if drop_image(raw_arr, drop_threshold):
+                continue
+            else:
+                # extract filename
+                new_filename = file.split('\\')[-1].replace(".png", ".npy")
+
+                # save as npy
+                np.save(os.path.join(output_masks_dir, new_filename), raw_arr)
+        
+                # convert frame 
+                file_frame = file.replace("mask", "frame")
+                reader.SetFileName(file_frame)
+                image = reader.Execute()
+                arr = sitk.GetArrayFromImage(image)
+                new_filename = file_frame.split('\\')[-1].replace(".png", ".npy")
+                np.save(os.path.join(output_frames_dir, new_filename), arr)
 
 if __name__ == "__main__":
 
     # input frames
-    frames = glob.glob("C:\\AML_seg_proj\\data\\frames\\*.png")
     masks = glob.glob("C:\\AML_seg_proj\\data\\masks\\*.png")
 
-    # output directory
+    # output directories
     output_frames = os.path.join(os.getcwd(), "data\\frames")
     output_masks = os.path.join(os.getcwd(), "data\\masks")
 
@@ -55,30 +85,16 @@ if __name__ == "__main__":
     print(f"Number of available CPU Cores: {num_cores}")
 
     # split for multiprocessing
-    frame_splits = np.array_split(frames, num_cores)
     mask_splits = np.array_split(masks, num_cores)
 
     # execute the conversion
-    # frames
-    processes = []
-    for split in frame_splits:
-        p = mp.Process(target=png_to_npy, args=(split, output_frames))
-        processes.append(p)
-        p.start()
-
-    for p in processes:
-        p.join()
-
-    print("Finished converting Images.")
-
-    # masks
     processes = []
     for split in mask_splits:
-        p = mp.Process(target=png_to_npy, args=(split, output_masks))
+        p = mp.Process(target=convert_dataset, args=(split, output_masks, output_frames, 0.03))
         processes.append(p)
         p.start()
 
     for p in processes:
         p.join()
     
-    print("Finished converting Masks.")
+    print("Finished converting the Dataset.")
