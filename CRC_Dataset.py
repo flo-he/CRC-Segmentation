@@ -1,9 +1,12 @@
 import torch
-from torchvision.transforms import Compose
+from torchvision.transforms import ToTensor, Compose
 import numpy as np
 import glob
 import os
 import time 
+from transformations import MirrorPad
+import matplotlib.pyplot as plt
+    
 
 class CRC_Dataset(torch.utils.data.Dataset):
     '''
@@ -12,7 +15,7 @@ class CRC_Dataset(torch.utils.data.Dataset):
     Further the images are assumed to be in a RGB format and unprocessed.
     '''
 
-    def __init__(self, root_dir, transforms=None):
+    def __init__(self, root_dir, transforms=[ToTensor()]):
         '''
         Args:\n
             :root_dir: string containing the root directory of the dataset. 
@@ -32,40 +35,43 @@ class CRC_Dataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         '''
-        Loads an image and its segmentation mask from disc and returns them as pytorch tensors.
+        Loads an image and its segmentation mask from disc, applies transformations and returns them as pytorch tensors.
         '''
         
         # load image and label from disk
         image = np.load(self.images[idx])
         label = np.load(self.labels[idx])
 
-        #print(image.shape, image.dtype)
+        plt.imshow(image)
+        plt.show()
 
-        # convert them to pytorch tensors, specifically, adjust image spacing for pytorch images (H, W, C) -> (C, H, W)
-        image = torch.from_numpy(image.transpose((2, 0, 1)))
-        label = torch.from_numpy(label)
+        # apply transformations 
+        image = self.composed_trsfm(image)
 
-        # apply transformatons if wanted
-        if self.transforms:
-            image, label = self.composed_trsfm((image, label))
-
-        return image, label
+        return image, torch.from_numpy(label)
 
 
 if __name__ == "__main__":
 
     # test
-    dataset = CRC_Dataset(os.path.join(os.getcwd(), 'data'))
+    dataset = CRC_Dataset(
+        root_dir = os.path.join(os.getcwd(), 'data'),
+        transforms = [MirrorPad(((92,), (92,), (0,))), ToTensor()]
+    )
 
     print(dataset.images[:10], dataset.labels[:10], len(dataset))
 
     t1 = time.perf_counter()
-    image, label = dataset[0]
+    image, label = dataset[np.random.randint(len(dataset))]
     t2 = time.perf_counter() - t1
 
     print(f"{CRC_Dataset.__getitem__} took {t2}s")
     print(image.shape, label.shape, image.dtype, label.dtype)
 
+    plt.imshow(image.numpy().transpose((1, 2, 0)))
+    plt.show()
+
+   
 
 
 
