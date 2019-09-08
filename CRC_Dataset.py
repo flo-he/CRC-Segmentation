@@ -42,9 +42,6 @@ class CRC_Dataset(torch.utils.data.Dataset):
         image = np.load(self.images[idx])
         label = np.load(self.labels[idx])
 
-        plt.imshow(image)
-        plt.show()
-
         # apply transformations 
         image = self.composed_trsfm(image)
 
