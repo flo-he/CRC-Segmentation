@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 
 class CRC_Dataset(torch.utils.data.Dataset):
     '''
-    CRC Tissue Segmentation Dataset. Files are assumed to lie in a root directory with subfolders 'frames' and 'masks' with the .npy file format.
-    (May be changed once considering split between training and test set).
+    CRC Tissue Segmentation Dataset. Files are assumed to lie in a root directory with subfolders 'frames' and 'masks' with the compressed .npz file format.
+    (May be changed once considering split between training and test set and if loading compressed .npz files becomes a bottleneck in dataloading & preprocessing).
     Further the images are assumed to be in a RGB format and unprocessed.
     '''
 
@@ -27,8 +27,8 @@ class CRC_Dataset(torch.utils.data.Dataset):
         self.composed_trsfm = Compose(transforms)
 
         # save name of files in lists
-        self.images = glob.glob(os.path.join(root_dir, 'frames\\*.npy'))
-        self.labels = glob.glob(os.path.join(root_dir, 'masks\\*.npy'))
+        self.images = glob.glob(os.path.join(root_dir, 'frames\\*.npz'))
+        self.labels = glob.glob(os.path.join(root_dir, 'masks\\*.npz'))
 
     def __len__(self):
         return len(self.images)
@@ -39,8 +39,8 @@ class CRC_Dataset(torch.utils.data.Dataset):
         '''
         
         # load image and label from disk
-        image = np.load(self.images[idx])
-        label = np.load(self.labels[idx])
+        image = np.load(self.images[idx])['arr_0']
+        label = np.load(self.labels[idx])['arr_0']
 
         # apply transformations 
         image = self.composed_trsfm(image)

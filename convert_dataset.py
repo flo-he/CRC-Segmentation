@@ -46,18 +46,18 @@ def convert_dataset(masks_fnames, output_masks_dir, output_frames_dir, drop_thre
                 continue
             else:
                 # extract filename
-                new_filename = file.split('\\')[-1].replace(".png", ".npy")
+                new_filename = file.split('\\')[-1].replace(".png", ".npz")
 
-                # save as npy
-                np.save(os.path.join(output_masks_dir, new_filename), raw_arr)
+                # save as npz
+                np.savez_compressed(os.path.join(output_masks_dir, new_filename), raw_arr)
         
                 # convert frame 
                 file_frame = file.replace("mask", "frame")
                 reader.SetFileName(file_frame)
                 image = reader.Execute()
                 arr = sitk.GetArrayFromImage(image)
-                new_filename = file_frame.split('\\')[-1].replace(".png", ".npy")
-                np.save(os.path.join(output_frames_dir, new_filename), arr)
+                new_filename = file_frame.split('\\')[-1].replace(".png", ".npz")
+                np.savez_compressed(os.path.join(output_frames_dir, new_filename), arr)
 
 if __name__ == "__main__":
 
@@ -68,8 +68,8 @@ if __name__ == "__main__":
     output_frames = os.path.join(os.getcwd(), "data\\frames")
     output_masks = os.path.join(os.getcwd(), "data\\masks")
 
-    print(f"Write images .npy files to {output_frames}")
-    print(f"Write masks .npy files to {output_masks}")
+    print(f"Write images .npz files to {output_frames}")
+    print(f"Write masks .npz files to {output_masks}")
 
     # create directory if not present
     try: 
