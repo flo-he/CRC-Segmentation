@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     # test
     dataset = CRC_Dataset(
-        root_dir = os.path.join(os.getcwd(), 'data'),
+        root_dir = os.path.join(os.getcwd(), 'data\\train'),
         transforms = [MirrorPad(((92,), (92,), (0,))), ToTensor()]
     )
 

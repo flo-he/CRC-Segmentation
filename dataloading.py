@@ -63,7 +63,7 @@ class CV_Splits(object):
 if __name__ == "__main__":
 
     dataset = CRC_Dataset(
-        root_dir = os.path.join(os.getcwd(), 'data'),
+        root_dir = os.path.join(os.getcwd(), 'data\\train'),
         transforms = [MirrorPad(((6,), (6,), (0,))), ToTensor()]
     )
 
