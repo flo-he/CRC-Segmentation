@@ -45,7 +45,7 @@ class CRC_Dataset(torch.utils.data.Dataset):
         # apply transformations 
         image = self.composed_trsfm(image)
 
-        return image, torch.from_numpy(label)
+        return image, torch.from_numpy(label).float()
 
 
 if __name__ == "__main__":

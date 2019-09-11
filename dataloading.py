@@ -10,16 +10,14 @@ from torchvision.transforms import ToTensor
 
 class CV_Splits(object):
     '''
-    Generator for cross validation compatible with PyTorch Datasets.
+    Generator for cross validation compatible with PyTorch Datasets. \n
+    Args:   \n
+        :cv_folds: number k of k-fold cross validation \n
+        :shuffle: bool, shuffle indices before creating splits \n
+        :dataset: initialize Generator with a PyTorch Dataset
     '''
 
     def __init__(self,  cv_folds, shuffle=True, dataset=None):
-        '''
-        Args:
-            :cv_folds: number k of k-fold cross validation
-            :shuffle: bool, shuffle indices before creating splits
-            :dataset: initialize Generator with a PyTorch Dataset
-        '''
         self.folds = cv_folds
         self.dataset = dataset
         self.shuffle = shuffle
