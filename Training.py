@@ -58,7 +58,7 @@ class NeuralNet(nn.Module):
         
         
      def forward(self, x):
-        
+         
         x = self.mirror(x)
         #way down:
         x = self.activation(self.convin1(self.pad(x))) # 1. increasing features
