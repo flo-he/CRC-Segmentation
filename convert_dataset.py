@@ -1,5 +1,5 @@
 import numpy as np
-import SimpleITK as sitk
+import imageio
 import multiprocessing as mp
 import os
 import glob
@@ -88,18 +88,11 @@ def convert_dataset(masks_fnames, output_dir, drop_threshold=0.):
         :output_frames_dir: output directory for the frames \n
         :drop_threshold: minimum relative amount of nonzero pixels 
     '''
-    
-    reader = sitk.ImageFileReader()
-    reader.SetImageIO("PNGImageIO")
 
     for file in masks_fnames:
-        #print(file)
-        # read in mask
-        reader.SetFileName(file)
-        mask = reader.Execute()
 
         # get raw numpy array
-        mask_arr = sitk.GetArrayFromImage(mask)
+        mask_arr = imageio.imread(file)
 
         # adjust labels to be 0, 1, 2
         mask_arr[mask_arr == 26] = 0
@@ -113,9 +106,7 @@ def convert_dataset(masks_fnames, output_dir, drop_threshold=0.):
             else:
                 # read in corresponding image
                 file_frame = file.replace("mask", "frame")
-                reader.SetFileName(file_frame)
-                image = reader.Execute()
-                img_arr = sitk.GetArrayFromImage(image)
+                img_arr = imageio.imread(file_frame)
 
                 # check for validity
                 valid = check_for_valid_seg_map(img_arr, mask_arr)
