@@ -3,7 +3,7 @@ import imageio
 import multiprocessing as mp
 import os
 import glob
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
 import argparse
 import shutil
