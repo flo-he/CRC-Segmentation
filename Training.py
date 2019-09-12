@@ -4,7 +4,7 @@ import torch
 from torchvision.transforms import ToTensor
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from transformations import MirrorPad
+from utils import MirrorPad
 from CRC_Dataset import CRC_Dataset
 from trainer import Trainer
 from multiprocessing import cpu_count

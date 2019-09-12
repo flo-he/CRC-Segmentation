@@ -4,7 +4,7 @@ import numpy as np
 # for testing
 import os
 from CRC_Dataset import CRC_Dataset
-from transformations import MirrorPad
+from utils import MirrorPad
 from torchvision.transforms import ToTensor
 
 

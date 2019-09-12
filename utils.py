@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import numpy as np
 
 class Dice_Loss(nn.Module):
     '''
@@ -52,7 +52,10 @@ class Dice_and_CE(nn.Module):
     def forward(self, pred, target):
         return self.dice(pred, target) + self.ce(pred, target)
 
+class MirrorPad(object):
+    def __init__(self, padding):
+        self.padding = padding
 
-        
-
-        
+    def __call__(self, image):
+        return np.pad(image, self.padding, mode='symmetric')
+    
