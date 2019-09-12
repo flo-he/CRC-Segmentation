@@ -2,11 +2,13 @@ import os
 
 import torch
 from torchvision.transforms import ToTensor
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from transformations import MirrorPad
 from CRC_Dataset import CRC_Dataset
 from trainer import Trainer
 from multiprocessing import cpu_count
+
 
 # GLOBAL TRAINING PARAMETERS
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -18,9 +20,10 @@ train_dict= {
     "batch_size" : 32,
     "cv_folds": 5,
     "pin_mem" : torch.cuda.is_available(),
-    "num_workers " : cpu_count()
+    "num_workers" : cpu_count(),
+    "output_dir" : "models\\",
+    "train_from_chkpts" : []
 }
-
 
 def main():
 
@@ -34,9 +37,10 @@ def main():
     model = ...
     optimizer = ...
     criterion = ...
+    lr_scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=3, min_lr=1e-6)
 
     # initialize trainer class
-    trainer = Trainer(model, optimizer, criterion, dataset_tr, **train_dict)
+    trainer = Trainer(model, optimizer, criterion, lr_scheduler, dataset_tr, **train_dict)
 
     # start training
     trainer.run_training()
