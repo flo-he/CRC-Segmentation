@@ -15,8 +15,8 @@ class Dice_Loss(nn.Module):
     '''
     
     def __init__(self, n_classes=3, smoothing=True):
-        self.smoothing = True
-        self.n_classes = 3
+        self.smoothing = smoothing
+        self.n_classes = n_classes
 
     def forward(self, pred, target):
         
@@ -44,8 +44,8 @@ class Dice_and_CE(nn.Module):
     '''
 
     def __init__(self,  n_classes=3, smoothing=True):
-        self.n_classes = 3
-        self.smoothing = True
+        self.n_classes = n_classes
+        self.smoothing = smoothing
         self.dice = Dice_Loss(n_classes, smoothing)
         self.ce = nn.CrossEntropyLoss()
 
