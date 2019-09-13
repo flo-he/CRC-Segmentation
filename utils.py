@@ -15,6 +15,7 @@ class Dice_Loss(nn.Module):
     '''
     
     def __init__(self, n_classes=3, smoothing=True):
+        super(Dice_Loss, self).__init__()
         self.smoothing = smoothing
         self.n_classes = n_classes
 
@@ -44,6 +45,7 @@ class Dice_and_CE(nn.Module):
     '''
 
     def __init__(self,  n_classes=3, smoothing=True):
+        super(Dice_and_CE, self).__init__()
         self.n_classes = n_classes
         self.smoothing = smoothing
         self.dice = Dice_Loss(n_classes, smoothing)
