@@ -12,8 +12,11 @@ from multiprocessing import cpu_count
 
 # GLOBAL TRAINING PARAMETERS
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(f"Using {torch.cuda.get_device_name(device=device)} for training.")
-
+if device.type == "cuda":
+    print(f"Using {torch.cuda.get_device_name(device=device)} for training.")
+else:
+    print("Using CPU for training.")
+    
 train_dict= {
     "device" : device,
     "epochs" : 100,
