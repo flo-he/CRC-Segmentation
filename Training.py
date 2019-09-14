@@ -1,6 +1,7 @@
 import os
 
 import torch
+import torch.optim as optim
 from torchvision.transforms import ToTensor
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
@@ -9,14 +10,12 @@ from CRC_Dataset import CRC_Dataset
 from trainer import Trainer
 from multiprocessing import cpu_count
 
+from utils import complex_net, Dice_Loss, Dice_and_CE
+
 
 # GLOBAL TRAINING PARAMETERS
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-if device.type == "cuda":
-    print(f"Using {torch.cuda.get_device_name(device=device)} for training.")
-else:
-    print("Using CPU for training.")
-    
+
 train_dict= {
     "device" : device,
     "epochs" : 100,
@@ -29,6 +28,10 @@ train_dict= {
 }
 
 def main():
+    if device.type == "cuda":
+        print(f"Using {torch.cuda.get_device_name(device=device)} for training.")
+    else:
+        print("Using CPU for training.")
 
     # create pytorch dataset
     dataset_tr = CRC_Dataset(
@@ -37,9 +40,9 @@ def main():
     )
 
     # set model, optimizer and loss criterion
-    model = ...
-    optimizer = ...
-    criterion = ...
+    model = complex_net()
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    criterion = Dice_and_CE(device).to(device)
     lr_scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=3, min_lr=1e-6)
 
     # initialize trainer class

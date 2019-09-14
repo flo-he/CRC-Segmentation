@@ -3,6 +3,7 @@ import os
 import time
 import torch
 from dataloading import CV_Splits
+from copy import deepcopy
 
 ### NEEDS TESTING ONCE U-NET ASSEMBLED
 class Trainer(object):
@@ -29,6 +30,13 @@ class Trainer(object):
         
         # training "globals"
         self.OUTPUT_DIR = os.path.join(os.getcwd(), output_dir)
+
+        try:
+            os.mkdir(self.OUTPUT_DIR)
+            print("Created output folder.")
+        except FileExistsError:
+            print("Output folder already exists.")
+
         self.EPOCHS = epochs
         self.BATCH_SIZE = batch_size
         self.PIN_MEM = pin_mem
@@ -37,7 +45,7 @@ class Trainer(object):
 
         # dataset and cv sampler
         self.dataset = dataset
-        self.cv_gen = CV_Splits(cv_folds, dataset)
+        self.cv_gen = CV_Splits(cv_folds, dataset=dataset)
 
         # model specific
         self.model = model
@@ -66,7 +74,7 @@ class Trainer(object):
         if chkpts:  
             model_chkpt, opt_chkpt = chkpts
             self.load_progress(model_chkpt, opt_chkpt) 
-            self.start_epoch = model_chkpt.split("_")[-1]
+            self.start_epoch = int(model_chkpt.split("_")[-1][:-3]) + 1
         else:  
             self.start_epoch = 1
 
@@ -86,9 +94,11 @@ class Trainer(object):
         '''
         # train on splits for training
         for idx, (image, mask) in enumerate(d_tr):
+            if idx % 50 == 0:
+                print(f"Batch {idx+1}/{len(d_tr)}")
             # get image batch and label batch
-            image.to(self.DEVICE, non_blocking=self.PIN_MEM)
-            mask.to(self.DEVICE, non_blocking=self.PIN_MEM)
+            image = image.to(self.DEVICE, non_blocking=self.PIN_MEM)
+            mask = mask.to(self.DEVICE, non_blocking=self.PIN_MEM)
 
             self.optimizer.zero_grad()
 
@@ -106,7 +116,7 @@ class Trainer(object):
             # backprop
             loss.backward()
             self.optimizer.step()
-            self.tr_loss += loss.detach().item().cpu()  # may need .numpy() or smth like that
+            self.tr_loss += loss.detach().item()
         
         # save average training loss
         self.avg_tr_losses.append(self.tr_loss / len(d_tr))
@@ -114,26 +124,27 @@ class Trainer(object):
 
         self.optimizer.zero_grad()  # necessary?
 
-        # validate of left over fold
+        # validate on leftover fold
         for idx, (image, mask) in enumerate(d_val):
             # get image batch and label batch
-            image.to(self.DEVICE, non_blocking=self.PIN_MEM)
-            mask.to(self.DEVICE, non_blocking=self.PIN_MEM)
+            image = image.to(self.DEVICE, non_blocking=self.PIN_MEM)
+            mask = mask.to(self.DEVICE, non_blocking=self.PIN_MEM)
 
             with torch.no_grad():
                 output = self.model(image)
                 del image
                 loss = self.criterion(output, mask)
                 del mask
-                self.val_loss += loss.item().cpu()  # may need .numpy() or smth like that
+                self.val_loss += loss.item()
 
         # save average validation loss
         self.avg_val_losses.append(self.val_loss / len(d_val))
+        print(self.val_loss / len(d_val))
         self.val_loss = 0.
 
         # save model and optimizer state
-        self.model_state_dicts.append(self.model.state_dict())
-        self.opt_state_dicts.append(self.optimizer.state_dict())
+        self.model_state_dicts.append(deepcopy(self.model.state_dict()))
+        self.opt_state_dicts.append(deepcopy(self.optimizer.state_dict()))
 
     def cross_validate(self):
         '''
@@ -141,19 +152,20 @@ class Trainer(object):
         '''
 
         # save current state dict
-        self.model_st = self.model.state_dict()
-        self.opt_st = self.optimizer.state_dict()
+        self.model_st = deepcopy(self.model.state_dict())
+        self.opt_st = deepcopy(self.optimizer.state_dict())
 
-        for (d_tr, d_val) in iter(self.cv_gen):
+        for i, (d_tr, d_val) in enumerate(iter(self.cv_gen), 1):
+            print(f"FOLD {i}")
             train_loader = self.get_dataloader(d_tr)
             valid_loader = self.get_dataloader(d_val)
 
             # run cross validation iteration
-            self.run_cv_iter(d_tr, d_val)
+            self.run_cv_iter(train_loader, valid_loader)
 
             # reset states for next iteration
-            self.model.load_state_dict(self.model_st)
-            self.optimizer.load_state_dict(self.opt_st)
+            self.model.load_state_dict(deepcopy(self.model_st))
+            self.optimizer.load_state_dict(deepcopy(self.opt_st))
 
     def run_training(self):
         '''
@@ -171,7 +183,7 @@ class Trainer(object):
             # keep model with smallest validation loss
             fold_idx = np.argmin(self.avg_val_losses)
             self.model.load_state_dict(self.model_state_dicts[fold_idx])
-            self.optimizer.load_state_dict(self.optimizer_state_dicts[fold_idx])
+            self.optimizer.load_state_dict(self.opt_state_dicts[fold_idx])
 
             t_end = time.perf_counter() - t_start
 
@@ -186,17 +198,17 @@ class Trainer(object):
             self.avg_tr_losses.clear()
             self.avg_val_losses.clear()
             self.model_state_dicts.clear()
-            self.optimizer_state_dicts.clear()
+            self.opt_state_dicts.clear()
 
             # save model and optimizer state to disc
-            if epoch % 5 == 0:
+            if epoch % 2 == 0:
                 print(f"Saving Progress to {self.OUTPUT_DIR}")
                 self.save_progress(epoch)
 
-    def save_progess(self, epoch):
+    def save_progress(self, epoch):
         # filenames
-        model_chkpt = os.path.join(self.OUTPUT_DIR, f"model_chkpt_{epoch}")
-        opt_chkpt = os.path.join(self.OUTPUT_DIR, f"optimizer_chkpt_{epoch}")
+        model_chkpt = os.path.join(self.OUTPUT_DIR, f"model_chkpt_{epoch}.pt")
+        opt_chkpt = os.path.join(self.OUTPUT_DIR, f"optimizer_chkpt_{epoch}.pt")
 
         torch.save(self.model.state_dict(), model_chkpt)
         torch.save(self.optimizer.state_dict(), opt_chkpt)
