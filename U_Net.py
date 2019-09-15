@@ -7,28 +7,11 @@ from .module import Module
 from .utils import _quadruple
 from .. import functional as F
 
-
-class _ConstantPadNd(Module):
-    __constants__ = ['padding', 'value']
-
-    def __init__(self, value):
-        super(_ConstantPadNd, self).__init__()
-        self.value = value
-
-    def forward(self, input):
-        return F.pad(input, self.padding, 'constant', self.value)
-
-    def extra_repr(self):
-        return 'padding={}, value={}'.format(self.padding, self.value)
-
-class ReflectionPad2d(_ReflectionPadNd):
-    def __init__(self, padding):
-        super(ReflectionPad2d, self).__init__()
-        self.padding = _quadruple(padding)
     
 
 class NeuralNet(nn.Module):
-    def __init__(self, input_feat = 3, feat1, feat2, feat3, feat4, feat5, output_feat = 3, kern_size = 3, actfunc = nn.LeakyReLu(), droprate = 0.1:
+    def __init__(self, input_feat = 3, feat1, feat2, feat3, feat4, feat5, output_feat = 3, kern_size = 3,
+                 actfunc = nn.LeakyReLu(), droprate = 0.1:
         #3 input features (rgb), 3 output features: (cancer, normal tissue, background) 
         super(NeuralNet, self).__init__()
         self.dropout = torch.nn.Dropout(droprate)
@@ -108,3 +91,5 @@ class NeuralNet(nn.Module):
 # Möglichkeit Dropout zu überspringen 
 # testen mit beispiel tensoren
 # insbesondere skip connection
+
+test = NeuralNet()
