@@ -28,7 +28,7 @@ class Trainer(object):
     '''
     
     def __init__(self, model, optimizer, criterion, lr_scheduler, dataset, train_from_chkpts, device,
-                 output_dir, epochs, batch_size, cv_folds, pin_mem, num_workers, log_level):
+                 output_dir, epochs, batch_size, cv_folds, images_per_epoch, pin_mem, num_workers, log_level):
         
         # training "globals"
         self.OUTPUT_DIR = os.path.join(os.getcwd(), output_dir)
@@ -48,7 +48,8 @@ class Trainer(object):
         self.NUM_WORKERS = num_workers
         self.DEVICE = device
         self.FOLDS = cv_folds
-        self.logger.info(f"Epochs: {epochs} | Batch Size: {batch_size} | #Processes for Dataloading: {num_workers}")
+        self.IMG_PER_EP = images_per_epoch
+        self.logger.info(f"Epochs: {epochs} | Batch Size: {batch_size} | Processed images per epoch: {images_per_epoch} | #Processes for Dataloading: {num_workers}")
 
         if device.type == "cuda":
             self.logger.info(f'Using GPU "{torch.cuda.get_device_name(device=device)}" for training.')
@@ -58,7 +59,7 @@ class Trainer(object):
         # dataset and cv sampler
         self.dataset = dataset
         self.logger.info(f"Total available training instances: {len(dataset)}")
-        self.cv_gen = CV_Splits(cv_folds, dataset=dataset)
+        self.cv_gen = CV_Splits(cv_folds, subset_size=images_per_epoch, dataset=dataset)
         self.logger.info(f"Using {cv_folds}-Fold Cross Validation.")
 
         # model specific
@@ -153,6 +154,7 @@ class Trainer(object):
 
         self.optimizer.zero_grad()  # necessary?
 
+        self.model.use_dropout = False
         with torch.no_grad():
             # validate on leftover fold
             for idx, (image, mask) in enumerate(d_val):
@@ -166,6 +168,7 @@ class Trainer(object):
                 loss = self.criterion(output, mask)
                 del mask
                 self.val_loss += loss.item()
+        self.model.use_dropout = True
 
         # save average validation loss
         self.avg_val_losses.append(self.val_loss / len(d_val))
@@ -199,8 +202,7 @@ class Trainer(object):
 
     def run_training(self):
         '''
-        Runs Training for specified amount of epochs. One Epoch is defined as a full sweep of the dataset using cross validation.
-        At each epoch, we keep the model of the k-fold CV that produces the lowest validation loss.
+        Runs Training for specified amount of epochs. At each epoch, we keep the model of the k-fold CV that produces the lowest validation loss.
         '''
 
         for epoch in range(self.start_epoch, self.EPOCHS+1):
@@ -225,6 +227,7 @@ class Trainer(object):
             self.logger.info(f"avg. CV tr. losses: {self.avg_tr_losses}")
             self.logger.info(f"avg. CV val. losses: {self.avg_val_losses}")
             self.logger.info(f"Epoch: {epoch} took {t_end}s | avg. tr_loss {self.avg_tr_losses[fold_idx]} | avg. val_loss: {self.avg_val_losses[fold_idx]}")
+            self.logger.info(f"Current Learning Rate: {self.optimizer.param_groups[0]['lr']}")
 
             self.avg_tr_losses.clear()
             self.avg_val_losses.clear()
@@ -232,7 +235,7 @@ class Trainer(object):
             self.opt_state_dicts.clear()
 
             # save model and optimizer state to disc
-            if epoch % 2 == 0:
+            if epoch % 5 == 0:
                 self.logger.info(f"Saving Progress to {self.OUTPUT_DIR}")
                 self.save_progress(epoch)
 

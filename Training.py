@@ -23,10 +23,11 @@ train_dict= {
     "epochs" : 100,
     "batch_size" : 32,
     "cv_folds": 3,
+    "images_per_epoch" : 1000,
     "pin_mem" : torch.cuda.is_available(),
     "num_workers" : 2,
     "output_dir" : "models\\",
-    "train_from_chkpts" : [],#["C:\AML_seg_proj\CRC-Segmentation\models\model_chkpt_14.pt", "C:\AML_seg_proj\CRC-Segmentation\models\optimizer_chkpt_14.pt"],
+    "train_from_chkpts" : [],#["C:\AML_seg_proj\CRC-Segmentation\models\model_chkpt_25.pt", "C:\AML_seg_proj\CRC-Segmentation\models\optimizer_chkpt_25.pt"],
     "log_level" : logging.DEBUG
 }
 
@@ -41,7 +42,7 @@ def main():
     model = complex_net()
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     criterion = Dice_and_CE(device).to(device)
-    lr_scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=3, min_lr=1e-6)
+    lr_scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=5, min_lr=1e-6, verbose=True)
 
     # initialize trainer class
     trainer = Trainer(model, optimizer, criterion, lr_scheduler, dataset_tr, **train_dict)

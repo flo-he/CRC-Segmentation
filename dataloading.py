@@ -17,10 +17,16 @@ class CV_Splits(object):
         :dataset: initialize Generator with a PyTorch Dataset
     '''
 
-    def __init__(self,  cv_folds, shuffle=True, dataset=None):
+    def __init__(self,  cv_folds, subset_size=None, shuffle=True, dataset=None):
         self.folds = cv_folds
         self.dataset = dataset
         self.shuffle = shuffle
+
+        # determine how much of the available training data is used for each cross validation iteration
+        self.subset_size = subset_size
+        if subset_size:
+            self.n_train = int((cv_folds - 1)/cv_folds * subset_size)
+            self.n_val = int(subset_size/cv_folds)
 
     def __call__(self, dataset):
         '''
@@ -52,8 +58,12 @@ class CV_Splits(object):
             #print(len(valid_idx))
 
             # return training and validation set as Subsets of the original dataset
-            dataset_train = torch.utils.data.Subset(self.dataset, train_idx)
-            dataset_valid = torch.utils.data.Subset(self.dataset, valid_idx)
+            if self.subset_size:
+                dataset_train = torch.utils.data.Subset(self.dataset, train_idx[:self.n_train])
+                dataset_valid = torch.utils.data.Subset(self.dataset, valid_idx[:self.n_val])
+            else:
+                dataset_train = torch.utils.data.Subset(self.dataset, train_idx)
+                dataset_valid = torch.utils.data.Subset(self.dataset, valid_idx)
 
             yield dataset_train, dataset_valid
 
