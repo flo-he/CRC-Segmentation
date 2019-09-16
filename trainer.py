@@ -123,7 +123,7 @@ class Trainer(object):
         n_tr_batches = len(d_tr)
         # train on splits for training
         for idx, (image, mask) in enumerate(d_tr):
-            if idx % 10 == 0 or (idx+1) % n_tr_batches == 0:
+            if idx % 50 == 0 or (idx+1) % n_tr_batches == 0:
                 self.logger.debug(f"Processing batch {idx+1}/{n_tr_batches}")
             # get image batch and label batch
             image = image.to(self.DEVICE, non_blocking=self.PIN_MEM)
@@ -153,13 +153,14 @@ class Trainer(object):
 
         self.optimizer.zero_grad()  # necessary?
 
-        # validate on leftover fold
-        for idx, (image, mask) in enumerate(d_val):
-            # get image batch and label batch
-            image = image.to(self.DEVICE, non_blocking=self.PIN_MEM)
-            mask = mask.to(self.DEVICE, non_blocking=self.PIN_MEM)
+        with torch.no_grad():
+            # validate on leftover fold
+            for idx, (image, mask) in enumerate(d_val):
+                # get image batch and label batch
+                image = image.to(self.DEVICE, non_blocking=self.PIN_MEM)
+                mask = mask.to(self.DEVICE, non_blocking=self.PIN_MEM)
 
-            with torch.no_grad():
+                
                 output = self.model(image)
                 del image
                 loss = self.criterion(output, mask)
