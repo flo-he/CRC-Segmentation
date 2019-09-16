@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import numpy as np
+from datetime import datetime
+import logging
+import os
 
 class Dice_Loss(nn.Module):
     '''
@@ -77,3 +80,23 @@ class complex_net(nn.Module):
 
     def forward(self, x):
         return self.activ(self.conv(self.conv(self.conv(x))))
+
+
+def get_train_logger(log_level):
+    logger = logging.getLogger("TRAINER")
+    now = datetime.now()
+    date_str = now.strftime("%d_%m_%Y_%H.%M.%S")
+
+    # create log directory if it does not exist
+    try:
+        os.mkdir(".\\log")
+    except FileExistsError:
+        pass
+    
+    logging.basicConfig(level=log_level)
+    fh = logging.FileHandler(f"log\\train_{date_str}.log")
+    formatter = logging.Formatter('%(asctime)s | %(name)s %(levelname)s: %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
+    return logger

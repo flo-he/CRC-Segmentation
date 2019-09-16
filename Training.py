@@ -12,6 +12,8 @@ from multiprocessing import cpu_count
 
 from utils import complex_net, Dice_Loss, Dice_and_CE
 
+import logging
+
 
 # GLOBAL TRAINING PARAMETERS
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -19,20 +21,16 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 train_dict= {
     "device" : device,
     "epochs" : 100,
-    "batch_size" : 32,
+    "batch_size" : 2,
     "cv_folds": 5,
     "pin_mem" : torch.cuda.is_available(),
     "num_workers" : cpu_count(),
     "output_dir" : "models\\",
-    "train_from_chkpts" : []
+    "train_from_chkpts" : [], #["C:\AML_seg_proj\CRC-Segmentation\models\model_chkpt_2.pt", "C:\AML_seg_proj\CRC-Segmentation\models\optimizer_chkpt_2.pt"],
+    "log_level" : logging.DEBUG
 }
 
 def main():
-    if device.type == "cuda":
-        print(f"Using {torch.cuda.get_device_name(device=device)} for training.")
-    else:
-        print("Using CPU for training.")
-
     # create pytorch dataset
     dataset_tr = CRC_Dataset(
         root_dir = os.path.join(os.getcwd(), "data\\train"),
