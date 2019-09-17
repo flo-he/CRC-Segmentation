@@ -3,6 +3,9 @@ import os
 import time
 import torch
 from dataloading import CV_Splits
+from copy import deepcopy
+from utils import get_train_logger
+
 
 ### NEEDS TESTING ONCE U-NET ASSEMBLED
 class Trainer(object):
@@ -25,31 +28,59 @@ class Trainer(object):
     '''
     
     def __init__(self, model, optimizer, criterion, lr_scheduler, dataset, train_from_chkpts, device,
-                 output_dir, epochs, batch_size, cv_folds, pin_mem, num_workers):
+                 output_dir, epochs, batch_size, cv_folds, pin_mem, num_workers, log_level):
         
         # training "globals"
         self.OUTPUT_DIR = os.path.join(os.getcwd(), output_dir)
+        
+        # logging
+        self.logger = get_train_logger(log_level)
+
+        try:
+            os.mkdir(self.OUTPUT_DIR)
+            self.logger.info(f"Created output folder {self.OUTPUT_DIR}")
+        except FileExistsError:
+            self.logger.warning(f"Output directory {self.OUTPUT_DIR} already exists. Checkpoints might get overwritten.")
+
         self.EPOCHS = epochs
         self.BATCH_SIZE = batch_size
         self.PIN_MEM = pin_mem
         self.NUM_WORKERS = num_workers
         self.DEVICE = device
+        self.FOLDS = cv_folds
+        self.logger.info(f"Epochs: {epochs} | Batch Size: {batch_size} | #Processes for Dataloading: {num_workers}")
+
+        if device.type == "cuda":
+            self.logger.info(f'Using GPU "{torch.cuda.get_device_name(device=device)}" for training.')
+        else:
+            self.logger.info("Using CPU for training.")
 
         # dataset and cv sampler
         self.dataset = dataset
-        self.cv_gen = CV_Splits(cv_folds, dataset)
+        self.logger.info(f"Total available training instances: {len(dataset)}")
+        self.cv_gen = CV_Splits(cv_folds, dataset=dataset)
+        self.logger.info(f"Using {cv_folds}-Fold Cross Validation.")
 
         # model specific
         self.model = model
         self.optimizer = optimizer
         self.criterion = criterion
+        
         self.lr_scheduler = lr_scheduler
         # push model to GPU if available
         self.model.to(device)
 
         # resume training if chkpts are given
         self.resume_training(train_from_chkpts)
-        
+        if train_from_chkpts:
+            self.logger.info(f"Resuming training from following checkpoints: {train_from_chkpts}")
+        else:
+            self.logger.info(f"Start training from scratch.")
+
+        self.logger.info(f"Model: {repr(self.model)}")
+        self.logger.info(f"Optimizer: {repr(self.optimizer)}")
+        self.logger.info(f"Loss Function: {repr(self.criterion)}")
+
         # running val loss for computing average loss
         self.val_loss = 0.
         self.tr_loss = 0.
@@ -65,8 +96,13 @@ class Trainer(object):
     def resume_training(self, chkpts):
         if chkpts:  
             model_chkpt, opt_chkpt = chkpts
-            self.load_progress(model_chkpt, opt_chkpt) 
-            self.start_epoch = model_chkpt.split("_")[-1]
+            try:
+                self.load_progress(model_chkpt, opt_chkpt) 
+                self.logger.info("Restored model and optimizer settings.")
+            except Exception as exc:
+                self.logger.warning("Failed to restore model and optimizer settings.")
+                raise exc
+            self.start_epoch = int(model_chkpt.split("_")[-1][:-3]) + 1
         else:  
             self.start_epoch = 1
 
@@ -84,11 +120,14 @@ class Trainer(object):
         '''
         Performs one cv iteration, i.e. trains on one of the possible combinations of the different cv folds.
         '''
+        n_tr_batches = len(d_tr)
         # train on splits for training
         for idx, (image, mask) in enumerate(d_tr):
+            if idx % 50 == 0 or (idx+1) % n_tr_batches == 0:
+                self.logger.debug(f"Processing batch {idx+1}/{n_tr_batches}")
             # get image batch and label batch
-            image.to(self.DEVICE, non_blocking=self.PIN_MEM)
-            mask.to(self.DEVICE, non_blocking=self.PIN_MEM)
+            image = image.to(self.DEVICE, non_blocking=self.PIN_MEM)
+            mask = mask.to(self.DEVICE, non_blocking=self.PIN_MEM)
 
             self.optimizer.zero_grad()
 
@@ -106,34 +145,36 @@ class Trainer(object):
             # backprop
             loss.backward()
             self.optimizer.step()
-            self.tr_loss += loss.detach().item().cpu()  # may need .numpy() or smth like that
+            self.tr_loss += loss.detach().item()
         
         # save average training loss
-        self.avg_tr_losses.append(self.tr_loss / len(d_tr))
+        self.avg_tr_losses.append(self.tr_loss / n_tr_batches)
         self.tr_loss = 0.
 
         self.optimizer.zero_grad()  # necessary?
 
-        # validate of left over fold
-        for idx, (image, mask) in enumerate(d_val):
-            # get image batch and label batch
-            image.to(self.DEVICE, non_blocking=self.PIN_MEM)
-            mask.to(self.DEVICE, non_blocking=self.PIN_MEM)
+        with torch.no_grad():
+            # validate on leftover fold
+            for idx, (image, mask) in enumerate(d_val):
+                # get image batch and label batch
+                image = image.to(self.DEVICE, non_blocking=self.PIN_MEM)
+                mask = mask.to(self.DEVICE, non_blocking=self.PIN_MEM)
 
-            with torch.no_grad():
+                
                 output = self.model(image)
                 del image
                 loss = self.criterion(output, mask)
                 del mask
-                self.val_loss += loss.item().cpu()  # may need .numpy() or smth like that
+                self.val_loss += loss.item()
 
         # save average validation loss
         self.avg_val_losses.append(self.val_loss / len(d_val))
+        #print(self.val_loss / len(d_val))
         self.val_loss = 0.
 
         # save model and optimizer state
-        self.model_state_dicts.append(self.model.state_dict())
-        self.opt_state_dicts.append(self.optimizer.state_dict())
+        self.model_state_dicts.append(deepcopy(self.model.state_dict()))
+        self.opt_state_dicts.append(deepcopy(self.optimizer.state_dict()))
 
     def cross_validate(self):
         '''
@@ -141,19 +182,20 @@ class Trainer(object):
         '''
 
         # save current state dict
-        self.model_st = self.model.state_dict()
-        self.opt_st = self.optimizer.state_dict()
+        self.model_st = deepcopy(self.model.state_dict())
+        self.opt_st = deepcopy(self.optimizer.state_dict())
 
-        for (d_tr, d_val) in iter(self.cv_gen):
+        for i, (d_tr, d_val) in enumerate(iter(self.cv_gen), 1):
+            self.logger.debug(f"Processing FOLD {i}/{self.FOLDS}")
             train_loader = self.get_dataloader(d_tr)
             valid_loader = self.get_dataloader(d_val)
 
             # run cross validation iteration
-            self.run_cv_iter(d_tr, d_val)
+            self.run_cv_iter(train_loader, valid_loader)
 
             # reset states for next iteration
-            self.model.load_state_dict(self.model_st)
-            self.optimizer.load_state_dict(self.opt_st)
+            self.model.load_state_dict(deepcopy(self.model_st))
+            self.optimizer.load_state_dict(deepcopy(self.opt_st))
 
     def run_training(self):
         '''
@@ -162,6 +204,7 @@ class Trainer(object):
         '''
 
         for epoch in range(self.start_epoch, self.EPOCHS+1):
+            self.logger.info(f"Training EPOCH: {epoch}")
             # measure time
             t_start = time.perf_counter()
 
@@ -171,7 +214,7 @@ class Trainer(object):
             # keep model with smallest validation loss
             fold_idx = np.argmin(self.avg_val_losses)
             self.model.load_state_dict(self.model_state_dicts[fold_idx])
-            self.optimizer.load_state_dict(self.optimizer_state_dicts[fold_idx])
+            self.optimizer.load_state_dict(self.opt_state_dicts[fold_idx])
 
             t_end = time.perf_counter() - t_start
 
@@ -179,24 +222,24 @@ class Trainer(object):
             self.lr_scheduler.step(self.avg_val_losses[fold_idx])
 
             # print/log info (add logging later)
-            print(self.avg_tr_losses)
-            print(self.avg_val_losses)
-            print(f"Epoch: {epoch} took {t_end}s | avg. tr_loss {self.avg_tr_losses[fold_idx]} | avg. val_loss: {self.avg_val_losses[fold_idx]}")
+            self.logger.info(f"avg. CV tr. losses: {self.avg_tr_losses}")
+            self.logger.info(f"avg. CV val. losses: {self.avg_val_losses}")
+            self.logger.info(f"Epoch: {epoch} took {t_end}s | avg. tr_loss {self.avg_tr_losses[fold_idx]} | avg. val_loss: {self.avg_val_losses[fold_idx]}")
 
             self.avg_tr_losses.clear()
             self.avg_val_losses.clear()
             self.model_state_dicts.clear()
-            self.optimizer_state_dicts.clear()
+            self.opt_state_dicts.clear()
 
             # save model and optimizer state to disc
-            if epoch % 5 == 0:
-                print(f"Saving Progress to {self.OUTPUT_DIR}")
+            if epoch % 2 == 0:
+                self.logger.info(f"Saving Progress to {self.OUTPUT_DIR}")
                 self.save_progress(epoch)
 
-    def save_progess(self, epoch):
+    def save_progress(self, epoch):
         # filenames
-        model_chkpt = os.path.join(self.OUTPUT_DIR, f"model_chkpt_{epoch}")
-        opt_chkpt = os.path.join(self.OUTPUT_DIR, f"optimizer_chkpt_{epoch}")
+        model_chkpt = os.path.join(self.OUTPUT_DIR, f"model_chkpt_{epoch}.pt")
+        opt_chkpt = os.path.join(self.OUTPUT_DIR, f"optimizer_chkpt_{epoch}.pt")
 
         torch.save(self.model.state_dict(), model_chkpt)
         torch.save(self.optimizer.state_dict(), opt_chkpt)
@@ -204,7 +247,3 @@ class Trainer(object):
     def load_progress(self, model_path, opt_path):
         self.model.load_state_dict(torch.load(model_path))
         self.optimizer.load_state_dict(torch.load(opt_path))
-
-
-    # maybe add early stopping 
-

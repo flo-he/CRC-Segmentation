@@ -52,8 +52,8 @@ class CV_Splits(object):
             #print(len(valid_idx))
 
             # return training and validation set as Subsets of the original dataset
-            dataset_train = torch.utils.data.Subset(dataset, train_idx)
-            dataset_valid = torch.utils.data.Subset(dataset, valid_idx)
+            dataset_train = torch.utils.data.Subset(self.dataset, train_idx)
+            dataset_valid = torch.utils.data.Subset(self.dataset, valid_idx)
 
             yield dataset_train, dataset_valid
 
