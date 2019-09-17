@@ -127,6 +127,7 @@ class NeuralNet(nn.Module):
         x = self.conv1out(x)
         x = self.dropout(x)
         x = self.activate(bnout(x))
+        return x
     
     def forw_no_drop(self, x):
         #way down
