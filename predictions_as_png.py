@@ -7,8 +7,8 @@ import imageio
 from utils import MirrorPad, complex_net
 import os
 
-device = ("cuda:0" if torch.cuda.is_available() else "cpu")
 output_dir = os.path.join(os.getcwd(), "input_output_images")
+
 try:
     os.mkdir(output_dir)
 except FileExistsError:
@@ -38,7 +38,6 @@ def main():
 
     # model
     model = complex_net()
-    model.to(device)
 
     # make predictions and write images and masks to disk as png files
     with torch.no_grad():
@@ -47,8 +46,6 @@ def main():
             img, ground_truth = np.load(file)["arr_0"], np.load(file.replace("frame", "mask"))["arr_0"]
             # transform img
             img = composed(img).unsqueeze(0)
-            # move image to device 
-            img = img.to(device)
             # prediction shape (1, 3, 500, 500)
             pred = model(img)
             # mask shape (1, 500, 500) 
