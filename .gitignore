@@ -3,3 +3,4 @@ __pycache__/
 daten/
 models/
 input_output_images/
+log/

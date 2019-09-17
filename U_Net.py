@@ -7,30 +7,14 @@ from .module import Module
 from .utils import _quadruple
 from .. import functional as F
 
-
-class _ConstantPadNd(Module):
-    __constants__ = ['padding', 'value']
-
-    def __init__(self, value):
-        super(_ConstantPadNd, self).__init__()
-        self.value = value
-
-    def forward(self, input):
-        return F.pad(input, self.padding, 'constant', self.value)
-
-    def extra_repr(self):
-        return 'padding={}, value={}'.format(self.padding, self.value)
-
-class ReflectionPad2d(_ReflectionPadNd):
-    def __init__(self, padding):
-        super(ReflectionPad2d, self).__init__()
-        self.padding = _quadruple(padding)
     
 
 class NeuralNet(nn.Module):
-    def __init__(self, input_feat = 3, feat1, feat2, feat3, feat4, feat5, output_feat = 3, kern_size = 3, actfunc = nn.LeakyReLu(), droprate = 0.1:
+    def __init__(self, input_feat = 3, feat1, feat2, feat3, feat4, feat5, output_feat = 3, kern_size = 3,
+                 actfunc = nn.LeakyReLu(), droprate = 0.1, enabledrop = True):
         #3 input features (rgb), 3 output features: (cancer, normal tissue, background) 
         super(NeuralNet, self).__init__()
+        self.enable = enabledrop
         self.dropout = torch.nn.Dropout(droprate)
         self.pool = nn.MaxPool2d(kernel_size = 2)
         self.convin1 = nn.Conv2d(input_feat, feat1, kern_size, padding = 1)
@@ -62,49 +46,118 @@ class NeuralNet(nn.Module):
         
         
      def forward(self, x):
-         
         #way down:
-        x = self.activation(self.bn1(self.dropout(self.convin1(x)))) # 1. increasing features
-        x = self.activation(self.bn1(self.dropout(self.conv11(x)))) # 2. no increase
+        x = self.convin1(x)
+        if self.enable:
+            x = self.dropout(x)
+        x = self.activation(self.bn1(x)) # 1. increasing features
+        x = self.conv11(x)
+        if self.enable:
+            x = self.dropout(x)
+        x = self.activation(self.bn1(x) # 2. no increase
         copy1 = x  #make copy to concatenate later
         x = self.pool(x)  #reduce resolution, increase receptive field
-        x = self.activation(self.bn2(self.dropout(self.conv12(x))))
-        x = self.activation(self.bn2(self.dropout(self.conv22(x))))
+        
+        x = self.conv12(x)
+        if self.enable:
+            x = self.dropout(x)
+        x = self.activation(self.bn2(x)) # 1. increasing features
+        x = self.conv22(x)
+        if self.enable:
+            x = self.dropout(x)
+        x = self.activation(self.bn2(x) # 2. no increase
         copy2 = x  #make copy to concatenate later
-        x = self.pool(x)
-        x = self.activation(self.bn3(self.dropout(self.conv23(x))))
-        x = self.activation(self.bn3(self.dropout(self.conv33(x))))
+        x = self.pool(x)  #reduce resolution, increase receptive field
+        
+        x = self.conv23(x)
+        if self.enable:
+            x = self.dropout(x)
+        x = self.activation(self.bn3(x)) # 1. increasing features
+        x = self.conv33(x)
+        if self.enable:
+            x = self.dropout(x)
+        x = self.activation(self.bn3(x) # 2. no increase
         copy3 = x  #make copy to concatenate later
-        x = self.pool(x)
-        x = self.activation(self.bn4(self.dropout(self.conv34(x))))
-        x = self.activation(self.bn4(self.dropout(self.conv44(x))))
+        x = self.pool(x)  #reduce resolution, increase receptive field
+
+        x = self.conv34(x)
+        if self.enable:
+            x = self.dropout(x)
+        x = self.activation(self.bn4(x)) # 1. increasing features
+        x = self.conv44(x)
+        if self.enable:
+            x = self.dropout(x)
+        x = self.activation(self.bn4(x) # 2. no increase
         copy4 = x  #make copy to concatenate later
-        x = self.pool(x)
-        x = self.activation(self.bn5(self.dropout(self.conv45(x))))
-        x = self.activation(self.bn5(self.dropout(self.conv55(x))))
+        x = self.pool(x)  #reduce resolution, increase receptive field
+
+        x = self.conv45(x)
+        if self.enable:
+            x = self.dropout(x)
+        x = self.activation(self.bn5(x)) # 1. increasing features
+        x = self.conv55(x)
+        if self.enable:
+            x = self.dropout(x)
+        x = self.activation(self.bn5(x) # 2. no increase
+        copy5 = x  #make copy to concatenate later
+        x = self.pool(x)  #reduce resolution, increase receptive field
+
+        ########## Hier noch weiter dropout
+
         #way up:
         x = self.upconv1(x)
         x = tc.cat((copy4, x))  #maybe need to give the right dim to concatenate...
-        x = self.activation(self.bn4(self.dropout(self.conv54(x))))
-        x = self.activation(self.bn4(self.dropout(self.conv44(x))))
+        x = self.conv54(x)
+        if self.enable: 
+            x = self.dropout(x)
+        x = self.activate(bn4(x))
+        x = self.conv44(x)
+        if self.enable: 
+            x = self.dropout(x)
+        x = self.activate(bn4(x))
+
         x = self.upconv2(x)
         x = tc.cat((copy3, x))  #maybe need to give the right dim to concatenate...
-        x = self.activation(self.bn3(self.dropout(self.conv43(x))))
-        x = self.activation(self.bn3(self.dropout(self.conv33(x))))
+        x = self.conv43(x)
+        if self.enable: 
+            x = self.dropout(x)
+        x = self.activate(bn3(x))
+        x = self.conv33(x)
+        if self.enable: 
+            x = self.dropout(x)
+        x = self.activate(bn3(x))
+
         x = self.upconv3(x)
         x = tc.cat((copy2, x))  #maybe need to give the right dim to concatenate...
-        x = self.activation(self.bn2(self.dropout(self.conv32(x))))
-        x = self.activation(self.bn2(self.dropout(self.conv22(x))))
+        x = self.conv32(x)
+        if self.enable: 
+            x = self.dropout(x)
+        x = self.activate(bn2(x))
+        x = self.conv22(x)
+        if self.enable: 
+            x = self.dropout(x)
+        x = self.activate(bn2(x))
+
         x = self.upconv4(x)
         x = tc.cat((copy1, x))  #maybe need to give the right dim to concatenate...
-        x = self.activation(self.bn1(self.dropout(self.conv21(x))))
-        x = self.activation(self.bn1(self.dropout(self.conv11(x))))
-        x = self.activation(self.bnout(self.dropout(self.conv1out(x))))
-        # ..maybe one softmax layer in the end?
+        x = self.conv21(x)
+        if self.enable: 
+            x = self.dropout(x)
+        x = self.activate(bn1(x))
+        x = self.conv11(x)
+        if self.enable: 
+            x = self.dropout(x)
+        x = self.activate(bn1(x))
+        x = self.conv1out(x)
+        if self.enable: 
+            x = self.dropout(x)
+        x = self.activate(bnout(x))
+
         return x
 
 
 # noch erledigen: 
-# Möglichkeit Dropout zu überspringen 
 # testen mit beispiel tensoren
 # insbesondere skip connection
+
+test = NeuralNet()

@@ -23,13 +23,15 @@ class Dice_Loss(nn.Module):
         self.n_classes = n_classes
         self.device = device
 
+        if self.device.type == "cuda":
+            self.tensortype = torch.cuda.FloatTensor
+        else:
+            self.tensortype = torch.FloatTensor
+
     def forward(self, pred, target):
         
         # convert target N x H x W to N x n_classes x H x W
-        if self.device.type == "cuda":
-            target_one_hot = torch.eye(self.n_classes)[target].permute(0, 3, 1, 2).cuda()
-        else:
-            target_one_hot = torch.eye(self.n_classes)[target].permute(0, 3, 1, 2).float()
+        target_one_hot = torch.eye(self.n_classes)[target].permute(0, 3, 1, 2).type(self.tensortype)
 
         # compute softmax of prediction
         probs = nn.functional.softmax(pred, dim=1)
@@ -44,6 +46,14 @@ class Dice_Loss(nn.Module):
 
         # return negated loss, since pytorch optimizer minimizes loss
         return 1 - (numerator / denominator).mean() # mean over batch
+
+class Dice_Score(nn.Module):
+    def __init__(self, device, n_classes=3, smoothing=True):
+        super(Dice_Score, self).__init__()
+        self.dice_loss = Dice_Loss(device, n_classes, smoothing)
+
+    def forward(self, pred, target):
+        return 1. - self.dice_loss(pred, target)
 
 class Dice_and_CE(nn.Module):
     '''
@@ -68,7 +78,6 @@ class MirrorPad(object):
     def __call__(self, image):
         return np.pad(image, self.padding, mode='symmetric')
 
-
 class complex_net(nn.Module):
     '''
     Literally just for testing the trainer.
@@ -80,6 +89,32 @@ class complex_net(nn.Module):
 
     def forward(self, x):
         return self.activ(self.conv(self.conv(self.conv(x))))
+
+class Pixel_Accuracy(nn.Module):
+    def __init__(self, device):
+        super(Pixel_Accuracy, self).__init__()
+        self.mask_shapes = (500, 500)
+        self.n_pixel = np.prod(self.mask_shapes)
+        self.device = device 
+
+        if self.device.type == "cuda":
+            self.tensortype = torch.cuda.FloatTensor
+        else:
+            self.tensortype = torch.FloatTensor
+
+
+    def forward(self, pred, target):
+        # convert network prediction to 2d mask
+        probs = nn.functional.softmax(pred, dim=1)
+        pred_masks = torch.argmax(probs, dim=1)
+
+        # flatten image dims and compute difference between images
+        diff = (pred_masks - target).view(-1, self.n_pixel)
+
+        # count correctly predicted pixels per batch instance
+        accuracies = (diff == 0).sum(dim=1).type(self.tensortype) / self.n_pixel
+
+        return accuracies.mean()
 
 
 def get_train_logger(log_level):
