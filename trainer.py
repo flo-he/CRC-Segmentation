@@ -147,12 +147,15 @@ class Trainer(object):
             loss.backward()
             self.optimizer.step()
             self.tr_loss += loss.detach().item()
-        
+
+        del d_tr
         # save average training loss
         self.avg_tr_losses.append(self.tr_loss / n_tr_batches)
         self.tr_loss = 0.
 
         self.optimizer.zero_grad()  # necessary?
+
+        torch.cuda.empty_cache()
 
         self.model.use_dropout = False
         with torch.no_grad():
@@ -168,10 +171,13 @@ class Trainer(object):
                 loss = self.criterion(output, mask)
                 del mask
                 self.val_loss += loss.item()
+        
+        
         self.model.use_dropout = True
-
+        torch.cuda.empty_cache()
         # save average validation loss
         self.avg_val_losses.append(self.val_loss / len(d_val))
+        del d_val
         #print(self.val_loss / len(d_val))
         self.val_loss = 0.
 
@@ -235,9 +241,9 @@ class Trainer(object):
             self.opt_state_dicts.clear()
 
             # save model and optimizer state to disc
-            if epoch % 5 == 0:
-                self.logger.info(f"Saving Progress to {self.OUTPUT_DIR}")
-                self.save_progress(epoch)
+            #if epoch % 5 == 0:
+            self.logger.info(f"Saving Progress to {self.OUTPUT_DIR}")
+            self.save_progress(epoch)
 
     def save_progress(self, epoch):
         # filenames
