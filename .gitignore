@@ -2,5 +2,6 @@ data/
 __pycache__/
 daten/
 models/
+model_new/
 input_output_images/
 log/
