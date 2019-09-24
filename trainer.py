@@ -4,7 +4,7 @@ import time
 import torch
 from dataloading import CV_Splits
 from copy import deepcopy
-from utils import get_train_logger
+from utils import get_train_logger, Loss_EMA
 
 
 ### NEEDS TESTING ONCE U-NET ASSEMBLED
@@ -66,7 +66,7 @@ class Trainer(object):
         self.model = model
         self.optimizer = optimizer
         self.criterion = criterion
-        
+        self.ema = Loss_EMA()
         self.lr_scheduler = lr_scheduler
         # push model to GPU if available
         self.model.to(device)
@@ -226,13 +226,18 @@ class Trainer(object):
 
             t_end = time.perf_counter() - t_start
 
+            # compute exponential moving average of chosen cv model for both tr and val loss
+            curr_tr_loss, curr_val_loss = self.avg_tr_losses[fold_idx], self.avg_val_losses[fold_idx]
+            tr_ma, val_ma = self.ema(curr_tr_loss, curr_val_loss)
+
             # maybe adjust learning rate
-            self.lr_scheduler.step(self.avg_val_losses[fold_idx])
+            self.lr_scheduler.step(tr_ma)
 
             # print/log info (add logging later)
             self.logger.info(f"avg. CV tr. losses: {self.avg_tr_losses}")
             self.logger.info(f"avg. CV val. losses: {self.avg_val_losses}")
-            self.logger.info(f"Epoch: {epoch} took {t_end}s | avg. tr_loss {self.avg_tr_losses[fold_idx]} | avg. val_loss: {self.avg_val_losses[fold_idx]}")
+            self.logger.info(f"Epoch: {epoch} took {t_end}s | cv iter tr_loss {curr_tr_loss} | cv iter val_loss: {curr_val_loss}")
+            self.logger.info(f"Exponential Moving Averages: tr_MA {tr_ma}, val_MA {val_ma}")
             self.logger.info(f"Current Learning Rate: {self.optimizer.param_groups[0]['lr']}")
 
             self.avg_tr_losses.clear()
@@ -241,8 +246,8 @@ class Trainer(object):
             self.opt_state_dicts.clear()
 
             # save model and optimizer state to disc
-            #if epoch % 5 == 0:
-            self.logger.info(f"Saving Progress to {self.OUTPUT_DIR}")
+            if epoch % 5 == 0:
+                self.logger.info(f"Saving Progress to {self.OUTPUT_DIR}")
             self.save_progress(epoch)
 
     def save_progress(self, epoch):

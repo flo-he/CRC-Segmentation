@@ -111,6 +111,30 @@ class Pixel_Accuracy(nn.Module):
 
         return accuracies.mean()
 
+class Loss_EMA(nn.Module):
+    def __init__(self, alpha=0.999):
+        super(Loss_EMA, self).__init__()
+        self.alpha = alpha
+        # track both validation and training loss averages
+        self.validation_avg = []
+        self.training_avg = []
+
+    def forward(self, tr, val):
+
+        # first time step
+        if not self.validation_avg:
+            new_ma_tr, new_ma_val = tr, val
+            self.training_avg.append(new_ma_tr)
+            self.validation_avg.append(new_ma_val)
+        else:   
+            # update rule of moving averages
+            new_ma_tr = (1. - self.alpha) * tr + self.alpha * self.training_avg[-1]
+            new_ma_val = (1. - self.alpha) * val + self.alpha * self.validation_avg[-1]
+            self.training_avg.append(new_ma_tr)
+            self.validation_avg.append(new_ma_val)
+        
+        return new_ma_tr, new_ma_val
+
 
 def get_train_logger(log_level):
     logger = logging.getLogger("TRAINER")
