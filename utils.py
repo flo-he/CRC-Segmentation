@@ -7,19 +7,17 @@ import os
 
 class Dice_Loss(nn.Module):
     '''
-    Implements dice loss for a multi class problem with optional smoothing.
+    Implements dice loss for a multi class problem.
 
     Args: \n
         :n_classes: int, number of classes in the target mask   \n
-        :smoothing: bool, if true, smoothing is applied (avoid division by zero)    \n
     Calling:    \n
         :pred: output of the segmentation network of shape [B, C, H, W]
         :target: target segmentation mask of shape [B, H, W]
     '''
     
-    def __init__(self, device, n_classes=3, smoothing=True):
+    def __init__(self, device, n_classes=3):
         super(Dice_Loss, self).__init__()
-        self.smoothing = smoothing
         self.n_classes = n_classes
         self.device = device
 
@@ -36,24 +34,22 @@ class Dice_Loss(nn.Module):
         # compute softmax of prediction
         probs = nn.functional.softmax(pred, dim=1)
 
-        if self.smoothing:
-            # torch.sum: sum tensors along all dimensions but batch dimension
-            numerator = 2. * torch.sum(probs * target_one_hot, (1, 2, 3)) + 1
-            denominator = torch.sum(probs + target_one_hot, (1, 2, 3)) + 1
-        else:
-            numerator = 2. * torch.sum(probs * target_one_hot, (1, 2, 3))
-            denominator = torch.sum(probs + target_one_hot, (1, 2, 3))
+        nominator = torch.sum(probs * target_one_hot, (2, 3))
+        denominator = torch.sum(probs + target_one_hot, (2, 3))
 
-        # return negated loss, since pytorch optimizer minimizes loss
-        return 1 - (numerator / denominator).mean() # mean over batch
-
+        # negated loss, since pytorch optimizer minimizes loss
+        dice_per_inst = -2. * torch.mean(nominator/denominator, 1)
+        
+        # mean over batch
+        return  dice_per_inst.mean()
+        
 class Dice_Score(nn.Module):
-    def __init__(self, device, n_classes=3, smoothing=True):
+    def __init__(self, device, n_classes=3):
         super(Dice_Score, self).__init__()
-        self.dice_loss = Dice_Loss(device, n_classes, smoothing)
+        self.dice_loss = Dice_Loss(device, n_classes)
 
     def forward(self, pred, target):
-        return 1. - self.dice_loss(pred, target)
+        return -self.dice_loss(pred, target)
 
 class Dice_and_CE(nn.Module):
     '''
@@ -61,11 +57,10 @@ class Dice_and_CE(nn.Module):
     See Dice_loss doc and pytorch's CrossEntropyLoss class for info.
     '''
 
-    def __init__(self, device,  n_classes=3, smoothing=True):
+    def __init__(self, device,  n_classes=3):
         super(Dice_and_CE, self).__init__()
         self.n_classes = n_classes
-        self.smoothing = smoothing
-        self.dice = Dice_Loss(device, n_classes, smoothing)
+        self.dice = Dice_Loss(device, n_classes)
         self.ce = nn.CrossEntropyLoss()
 
     def forward(self, pred, target):
