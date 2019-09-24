@@ -4,8 +4,9 @@ from torchvision import transforms
 import numpy as np
 import matplotlib.pyplot as plt
 import imageio
-from utils import MirrorPad, complex_net
+from utils import MirrorPad
 import os
+from U_Net import NeuralNet
 
 output_dir = os.path.join(os.getcwd(), "input_output_images")
 
@@ -33,11 +34,15 @@ def plot_triple(img, mask, ground_truth):
 def main():
     # frames to infer
     files = ["C:\\AML_seg_proj\\CRC-Segmentation\\data\\test\\frames\\frame#17.npz"]
+    chkpt = []
     # transforms to apply
-    composed = transforms.Compose([MirrorPad(((6,), (6,), (0,))), transforms.ToTensor()])
+    composed = transforms.Compose([MirrorPad(((6,), (6,), (0,))), transforms.ToTensor(), transforms.Normalize(mean=(0.7979, 0.6772, 0.7768), std=(0.1997, 0.3007, 0.2039), inplace=True)])
 
     # model
-    model = complex_net()
+    model = NeuralNet(64, 128, 256, 512, 1024)
+    if chkpt:
+        model.load_state_dict(torch.load(chkpt))
+    model.use_dropout = False
 
     # make predictions and write images and masks to disk as png files
     with torch.no_grad():
