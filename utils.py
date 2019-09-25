@@ -112,7 +112,7 @@ class Pixel_Accuracy(nn.Module):
         return accuracies.mean()
 
 class Loss_EMA(nn.Module):
-    def __init__(self, alpha=0.999):
+    def __init__(self, alpha=0.9):
         super(Loss_EMA, self).__init__()
         self.alpha = alpha
         # track both validation and training loss averages
