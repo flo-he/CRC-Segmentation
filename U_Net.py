@@ -4,7 +4,7 @@ import torch.optim as optim
 
 class NeuralNet(nn.Module):
     def __init__(self, feat1, feat2, feat3, feat4, feat5, input_feat=3, output_feat=3, kern_size=3,
-                 actfunc=nn.LeakyReLU(inplace=True), droprate=0.1, enabledrop=True):
+                 actfunc=nn.LeakyReLU(inplace=True), droprate=0.1, enabledrop=True, affine=True):
         #3 input channels (rgb), 3 output classes: (cancer, normal tissue, background) 
         super(NeuralNet, self).__init__()
         # dropout on/off for training/validation
@@ -32,12 +32,12 @@ class NeuralNet(nn.Module):
         self.upconv2 = nn.ConvTranspose2d(feat4,feat3 , 2, stride=2)
         self.upconv3 = nn.ConvTranspose2d(feat3,feat2 , 2, stride=2)
         self.upconv4 = nn.ConvTranspose2d(feat2,feat1 , 2, stride=2)
-        self.inst_norm1 = nn.InstanceNorm2d(feat1)
-        self.inst_norm2 = nn.InstanceNorm2d(feat2)
-        self.inst_norm3 = nn.InstanceNorm2d(feat3)
-        self.inst_norm4 = nn.InstanceNorm2d(feat4)
-        self.inst_norm5 = nn.InstanceNorm2d(feat5)
-        self.inst_normout = nn.InstanceNorm2d(output_feat)
+        self.inst_norm1 = nn.InstanceNorm2d(feat1, affine=affine)
+        self.inst_norm2 = nn.InstanceNorm2d(feat2, affine=affine)
+        self.inst_norm3 = nn.InstanceNorm2d(feat3, affine=affine)
+        self.inst_norm4 = nn.InstanceNorm2d(feat4, affine=affine)
+        self.inst_norm5 = nn.InstanceNorm2d(feat5, affine=affine)
+        self.inst_normout = nn.InstanceNorm2d(output_feat, affine=affine)
         self.activation = actfunc
         
         
