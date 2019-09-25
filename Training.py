@@ -28,7 +28,7 @@ train_dict= {
     "images_per_epoch" : 300,
     "pin_mem" : torch.cuda.is_available(),
     "num_workers" : 2,
-    "output_dir" : "model_new\\",
+    "output_dir" : "model_affine\\",
     "train_from_chkpts" : [],
     "log_level" : logging.INFO
 }
@@ -41,8 +41,8 @@ def main():
     )
 
     # set model, optimizer and loss criterion
-    model = NeuralNet(64, 128, 256, 512, 1024, droprate=0.5)
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    model = NeuralNet(64, 128, 256, 512, 1024, droprate=0.33)
+    optimizer = optim.Adam(model.parameters(), lr=5e-4, weight_decay=3e-5)
     criterion = Dice_and_CE(device).to(device)
     lr_scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=15, min_lr=1e-6, verbose=True)
 
