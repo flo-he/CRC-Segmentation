@@ -3,5 +3,6 @@ __pycache__/
 daten/
 models/
 model_new/
+model_affine/
 input_output_images/
 log/
