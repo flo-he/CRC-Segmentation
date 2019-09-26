@@ -29,7 +29,8 @@ train_dict= {
     "pin_mem" : torch.cuda.is_available(),
     "num_workers" : 2,
     "output_dir" : "model_affine\\",
-    "train_from_chkpts" : [],
+    "train_from_chkpts" : ["C:\\AML_seg_proj\\CRC-Segmentation\\model_affine\\model_chkpt_91.pt",
+                           "C:\\AML_seg_proj\\CRC-Segmentation\\model_affine\\optimizer_chkpt_91.pt"],
     "log_level" : logging.INFO
 }
 
@@ -44,7 +45,7 @@ def main():
     model = NeuralNet(64, 128, 256, 512, 1024, droprate=0.33)
     optimizer = optim.Adam(model.parameters(), lr=5e-4, weight_decay=3e-5)
     criterion = Dice_and_CE(device).to(device)
-    lr_scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=15, min_lr=1e-6, verbose=True)
+    lr_scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=10, min_lr=1e-6, verbose=True)
 
     # initialize trainer class
     trainer = Trainer(model, optimizer, criterion, lr_scheduler, dataset_tr, **train_dict)
