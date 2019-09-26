@@ -1,0 +1,87 @@
+2019-09-26 08:29:29,931 | TRAINER WARNING: Output directory C:\AML_seg_proj\CRC-Segmentation\model_affine\ already exists. Checkpoints might get overwritten.
+2019-09-26 08:29:29,932 | TRAINER INFO: Epochs: 250 | Batch Size: 1 | Processed images per epoch: 300 | #Processes for Dataloading: 2
+2019-09-26 08:29:30,117 | TRAINER INFO: Using GPU "GeForce GTX 1060 6GB" for training.
+2019-09-26 08:29:30,117 | TRAINER INFO: Total available training instances: 9928
+2019-09-26 08:29:30,118 | TRAINER INFO: Using 5-Fold Cross Validation.
+2019-09-26 08:29:34,261 | TRAINER INFO: Restored model and optimizer settings.
+2019-09-26 08:29:34,262 | TRAINER INFO: Resuming training from following checkpoints: ['C:\\AML_seg_proj\\CRC-Segmentation\\model_affine\\model_chkpt_85.pt', 'C:\\AML_seg_proj\\CRC-Segmentation\\model_affine\\optimizer_chkpt_85.pt']
+2019-09-26 08:29:34,263 | TRAINER INFO: Model: NeuralNet(
+  (dropout): Dropout(p=0.33, inplace=True)
+  (pool): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+  (convin1): Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv12): Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv23): Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv34): Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv45): Conv2d(512, 1024, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv54): Conv2d(1024, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv43): Conv2d(512, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv32): Conv2d(256, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv21): Conv2d(128, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv1out): Conv2d(64, 3, kernel_size=(1, 1), stride=(1, 1))
+  (conv11): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv22): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv33): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv44): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv55): Conv2d(1024, 1024, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (upconv1): ConvTranspose2d(1024, 512, kernel_size=(2, 2), stride=(2, 2))
+  (upconv2): ConvTranspose2d(512, 256, kernel_size=(2, 2), stride=(2, 2))
+  (upconv3): ConvTranspose2d(256, 128, kernel_size=(2, 2), stride=(2, 2))
+  (upconv4): ConvTranspose2d(128, 64, kernel_size=(2, 2), stride=(2, 2))
+  (inst_norm1): InstanceNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=False)
+  (inst_norm2): InstanceNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=False)
+  (inst_norm3): InstanceNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=False)
+  (inst_norm4): InstanceNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=False)
+  (inst_norm5): InstanceNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=False)
+  (inst_normout): InstanceNorm2d(3, eps=1e-05, momentum=0.1, affine=True, track_running_stats=False)
+  (activation): LeakyReLU(negative_slope=0.01, inplace=True)
+)
+2019-09-26 08:29:34,263 | TRAINER INFO: Optimizer: Adam (
+Parameter Group 0
+    amsgrad: False
+    betas: (0.9, 0.999)
+    eps: 1e-08
+    lr: 0.0001
+    weight_decay: 3e-05
+)
+2019-09-26 08:29:34,265 | TRAINER INFO: Loss Function: Dice_and_CE(
+  (dice): Dice_Loss()
+  (ce): CrossEntropyLoss()
+)
+2019-09-26 08:29:34,265 | TRAINER INFO: Training EPOCH: 86
+2019-09-26 08:38:18,037 | TRAINER INFO: avg. CV tr. losses: [0.1884229270120462, 0.14309557415544988, 0.14419183178494374, 0.14643895644694566, 0.14651111016670862]
+2019-09-26 08:38:18,038 | TRAINER INFO: avg. CV val. losses: [0.028770852088928222, 0.32926512956619264, 0.2509160543481509, 0.23877001653114954, 0.265111809472243]
+2019-09-26 08:38:18,040 | TRAINER INFO: Epoch: 86 took 523.771198s | cv iter tr_loss 0.1884229270120462 | cv iter val_loss: 0.028770852088928222
+2019-09-26 08:38:18,040 | TRAINER INFO: Exponential Moving Averages: tr_MA 0.1884229270120462, val_MA 0.028770852088928222
+2019-09-26 08:38:18,041 | TRAINER INFO: Current Learning Rate: 0.0001
+2019-09-26 08:38:18,778 | TRAINER INFO: Training EPOCH: 87
+2019-09-26 08:46:54,121 | TRAINER INFO: avg. CV tr. losses: [0.21324885934591292, 0.1361838011071086, 0.13443928671379884, 0.13480930390457313, 0.13531578971693914]
+2019-09-26 08:46:54,122 | TRAINER INFO: avg. CV val. losses: [0.09134373838702838, 0.36910203049580254, 0.16974990765253703, 0.1997237687309583, 0.15744252850612003]
+2019-09-26 08:46:54,123 | TRAINER INFO: Epoch: 87 took 515.3435577s | cv iter tr_loss 0.21324885934591292 | cv iter val_loss: 0.09134373838702838
+2019-09-26 08:46:54,124 | TRAINER INFO: Exponential Moving Averages: tr_MA 0.19090552024543286, val_MA 0.035028140718738235
+2019-09-26 08:46:54,124 | TRAINER INFO: Current Learning Rate: 0.0001
+2019-09-26 08:46:54,854 | TRAINER INFO: Training EPOCH: 88
+2019-09-26 08:55:30,486 | TRAINER INFO: avg. CV tr. losses: [0.18940753135830163, 0.20339591335505247, 0.20097525250166653, 0.20225437587747971, 0.2033413564786315]
+2019-09-26 08:55:30,486 | TRAINER INFO: avg. CV val. losses: [0.21895956595738728, 0.15778465668360392, 0.053141569594542186, 0.03784469068050385, 0.11403897429505984]
+2019-09-26 08:55:30,488 | TRAINER INFO: Epoch: 88 took 515.6315852s | cv iter tr_loss 0.20225437587747971 | cv iter val_loss: 0.03784469068050385
+2019-09-26 08:55:30,488 | TRAINER INFO: Exponential Moving Averages: tr_MA 0.19204040580863754, val_MA 0.0353097957149148
+2019-09-26 08:55:30,489 | TRAINER INFO: Current Learning Rate: 0.0001
+2019-09-26 08:55:31,250 | TRAINER INFO: Training EPOCH: 89
+2019-09-26 09:04:05,927 | TRAINER INFO: avg. CV tr. losses: [0.1741975306843718, 0.1303960731253028, 0.1312755645563205, 0.13040088762839636, 0.1300881288324793]
+2019-09-26 09:04:05,927 | TRAINER INFO: avg. CV val. losses: [0.0666515881816546, 0.1736945460240046, 0.19579347123702368, 0.16733898669481279, 0.18238524248202642]
+2019-09-26 09:04:05,929 | TRAINER INFO: Epoch: 89 took 514.6767522999999s | cv iter tr_loss 0.1741975306843718 | cv iter val_loss: 0.0666515881816546
+2019-09-26 09:04:05,929 | TRAINER INFO: Exponential Moving Averages: tr_MA 0.19025611829621097, val_MA 0.03844397496158878
+2019-09-26 09:04:05,930 | TRAINER INFO: Current Learning Rate: 0.0001
+2019-09-26 09:04:06,669 | TRAINER INFO: Training EPOCH: 90
+2019-09-26 09:12:42,090 | TRAINER INFO: avg. CV tr. losses: [0.173377086656789, 0.130209157243371, 0.13347125717749198, 0.13191846621533235, 0.1321464976295829]
+2019-09-26 09:12:42,090 | TRAINER INFO: avg. CV val. losses: [0.08134521394968033, 0.20468592792749404, 0.07872508466243744, 0.2291222517689069, 0.08581791867812474]
+2019-09-26 09:12:42,092 | TRAINER INFO: Epoch: 90 took 515.4197373000002s | cv iter tr_loss 0.13347125717749198 | cv iter val_loss: 0.07872508466243744
+2019-09-26 09:12:42,092 | TRAINER INFO: Exponential Moving Averages: tr_MA 0.1845776321843391, val_MA 0.04247208593167365
+2019-09-26 09:12:42,093 | TRAINER INFO: Current Learning Rate: 0.0001
+2019-09-26 09:12:42,095 | TRAINER INFO: Saving Progress to C:\AML_seg_proj\CRC-Segmentation\model_affine\
+2019-09-26 09:12:42,841 | TRAINER INFO: Training EPOCH: 91
+2019-09-26 09:21:18,555 | TRAINER INFO: avg. CV tr. losses: [0.1701380473872026, 0.17008081475893658, 0.1681010811900099, 0.17023832630366087, 0.16944047038753826]
+2019-09-26 09:21:18,555 | TRAINER INFO: avg. CV val. losses: [0.21373173619310062, 0.2609815801183383, 0.11208264529705048, 0.0984594335158666, 0.0363003005584081]
+2019-09-26 09:21:18,557 | TRAINER INFO: Epoch: 91 took 515.7126990000002s | cv iter tr_loss 0.16944047038753826 | cv iter val_loss: 0.0363003005584081
+2019-09-26 09:21:18,558 | TRAINER INFO: Exponential Moving Averages: tr_MA 0.18306391600465902, val_MA 0.04185490739434709
+2019-09-26 09:21:18,558 | TRAINER INFO: Current Learning Rate: 0.0001
+2019-09-26 09:21:19,277 | TRAINER INFO: Training EPOCH: 92

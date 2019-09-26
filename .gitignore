@@ -4,5 +4,5 @@ daten/
 models/
 model_new/
 model_affine/
-input_output_images/
-log/
+#input_output_images/
+#log/
