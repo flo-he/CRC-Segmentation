@@ -157,7 +157,8 @@ class Trainer(object):
 
         torch.cuda.empty_cache()
 
-        self.model.use_dropout = False
+        # eval mode takes care of skipping dropout layers
+        self.model.eval()
         with torch.no_grad():
             # validate on leftover fold
             for idx, (image, mask) in enumerate(d_val):
@@ -171,9 +172,8 @@ class Trainer(object):
                 loss = self.criterion(output, mask)
                 del mask
                 self.val_loss += loss.item()
-        
-        
-        self.model.use_dropout = True
+
+        self.model.train()
         torch.cuda.empty_cache()
         # save average validation loss
         self.avg_val_losses.append(self.val_loss / len(d_val))
@@ -211,6 +211,10 @@ class Trainer(object):
         Runs Training for specified amount of epochs. At each epoch, we keep the model of the k-fold CV that produces the lowest validation loss.
         '''
 
+        # start train mode
+        self.model.train()
+        
+        # training loop
         for epoch in range(self.start_epoch, self.EPOCHS+1):
             self.logger.info(f"Training EPOCH: {epoch}")
             # measure time
@@ -231,7 +235,7 @@ class Trainer(object):
             tr_ma, val_ma = self.ema(curr_tr_loss, curr_val_loss)
 
             # maybe adjust learning rate
-            self.lr_scheduler.step(tr_ma)
+            self.lr_scheduler.step(val_ma)
 
             # print/log info (add logging later)
             self.logger.info(f"avg. CV tr. losses: {self.avg_tr_losses}")

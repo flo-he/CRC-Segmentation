@@ -2,8 +2,8 @@ import os
 
 import torch
 import torch.optim as optim
+import torch.nn as nn
 from torchvision.transforms import ToTensor, Normalize
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from utils import MirrorPad
 from CRC_Dataset import CRC_Dataset
@@ -13,7 +13,7 @@ from multiprocessing import cpu_count
 from utils import complex_net, Dice_Loss, Dice_and_CE
 
 import logging
-from U_Net import NeuralNet
+from U_Net import UNet
 
 
 # GLOBAL TRAINING PARAMETERS
@@ -22,16 +22,17 @@ torch.backends.cudnn.benchmark = torch.cuda.is_available()
 
 train_dict= {
     "device" : device,
-    "epochs" : 250,
-    "batch_size" : 1,
+    # ~ 55.000 batch updates -> 55.000/250 = 220 epochs
+    "epochs" : 220,
+    "batch_size" : 16,
     "cv_folds": 5,
-    "images_per_epoch" : 300,
+    # 1 epoch = 250 batches -> images per epoch = batch size * batches per epoch
+    "images_per_epoch" : int(250*16),
     "pin_mem" : torch.cuda.is_available(),
     "num_workers" : 2,
-    "output_dir" : "model_affine\\",
-    "train_from_chkpts" : ["C:\\AML_seg_proj\\CRC-Segmentation\\model_affine\\model_chkpt_91.pt",
-                           "C:\\AML_seg_proj\\CRC-Segmentation\\model_affine\\optimizer_chkpt_91.pt"],
-    "log_level" : logging.INFO
+    "output_dir" : "model_new\\",
+    "train_from_chkpts" : [],
+    "log_level" : logging.DEBUG
 }
 
 def main():
@@ -42,10 +43,12 @@ def main():
     )
 
     # set model, optimizer and loss criterion
-    model = NeuralNet(64, 128, 256, 512, 1024, droprate=0.33)
+    model = UNet(64, 128, 256, 512)
     optimizer = optim.Adam(model.parameters(), lr=5e-4, weight_decay=3e-5)
-    criterion = Dice_and_CE(device).to(device)
-    lr_scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=10, min_lr=1e-6, verbose=True)
+    # use reweighted cross entropy
+    criterion = nn.CrossEntropyLoss(weight=[1/131383, 1/68638, 1/49979])
+    #criterion = Dice_and_CE(device).to(device)
+    lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=10, min_lr=1e-6, verbose=True)
 
     # initialize trainer class
     trainer = Trainer(model, optimizer, criterion, lr_scheduler, dataset_tr, **train_dict)
