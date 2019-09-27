@@ -6,6 +6,65 @@ import os
 #import time 
 #from utils import MirrorPad
 #import matplotlib.pyplot as plt
+
+class CV_Splits(object):
+    '''
+    Generator for cross validation compatible with PyTorch Datasets. \n
+    Args:   \n
+        :cv_folds: number k of k-fold cross validation \n
+        :shuffle: bool, shuffle indices before creating splits \n
+        :dataset: initialize Generator with a PyTorch Dataset
+    '''
+
+    def __init__(self,  cv_folds, subset_size=None, shuffle=True, dataset=None):
+        self.folds = cv_folds
+        self.dataset = dataset
+        self.shuffle = shuffle
+
+        # determine how much of the available training data is used for each cross validation iteration
+        self.subset_size = subset_size
+        if subset_size:
+            self.n_train = int((cv_folds - 1)/cv_folds * subset_size)
+            self.n_val = int(subset_size/cv_folds)
+
+    def __call__(self, dataset):
+        '''
+        Args:
+            :dataset: PyTorch dataset to reassign
+        '''
+        self.dataset = dataset
+
+    def __iter__(self):
+        '''
+        Generator method, yields training and validation set as PyTorch Datasets.
+        '''
+        self.indices = np.arange(len(self.dataset))
+
+        if self.shuffle:
+            self.indices = np.random.permutation(self.indices)
+
+        #print(len(self.indices))
+        # create splits
+        self.splits = np.array_split(self.indices, self.folds)
+        #print(self.splits)
+
+        # iterate over fold combinations
+        for fold in range(self.folds):
+            train_idx = np.concatenate([split for i, split in enumerate(self.splits) if i != fold])
+            valid_idx = self.splits[fold]
+            
+            #print(len(train_idx))
+            #print(len(valid_idx))
+
+            # return training and validation set as Subsets of the original dataset
+            if self.subset_size:
+                dataset_train = torch.utils.data.Subset(self.dataset, train_idx[:self.n_train])
+                dataset_valid = torch.utils.data.Subset(self.dataset, valid_idx[:self.n_val])
+            else:
+                dataset_train = torch.utils.data.Subset(self.dataset, train_idx)
+                dataset_valid = torch.utils.data.Subset(self.dataset, valid_idx)
+
+            yield dataset_train, dataset_valid
     
 class CRC_Dataset(torch.utils.data.Dataset):
     '''
@@ -70,6 +129,16 @@ def compute_mean_and_std(dataloader, device):
     # return means and stds
     return mean.cpu(), torch.sqrt(mean_sq - mean**2).cpu()
 
+def compute_mean_class_occurences(dataloader):
+
+    cl_occurences = np.zeros(3)
+
+    for _, mask_batch in dataloader:
+        batch_np = mask_batch.view(mask_batch.size(0), -1).numpy()
+        for i in range(3):
+            cl_occurences[i] += np.mean(np.count_nonzero(batch_np == i, axis=1))
+        
+    return cl_occurences/len(dataloader)
 
     
 if __name__ == "__main__":
@@ -95,8 +164,10 @@ if __name__ == "__main__":
         num_workers = 2
     )
 
-    mean, std = compute_mean_and_std(dataloader, device="cuda:0") #set to "cpu" if not gpu is available
-    print(mean, std) #prints approx. mean=(0.7979, 0.6772, 0.7768), std=(0.1997, 0.3007, 0.2039)
+    occurences = compute_mean_class_occurences(dataloader)
+    print(occurences) #rounded [131383, 68638, 49979]
+    #mean, std = compute_mean_and_std(dataloader, device="cuda:0") #set to "cpu" if not gpu is available
+    #print(mean, std) #prints approx. mean=(0.7979, 0.6772, 0.7768), std=(0.1997, 0.3007, 0.2039)
 
 
 
