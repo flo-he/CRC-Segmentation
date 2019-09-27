@@ -1,213 +1,116 @@
 import torch as tc
 import torch.nn as nn
-import torch.optim as optim
 
-class NeuralNet(nn.Module):
-    def __init__(self, feat1, feat2, feat3, feat4, feat5, input_feat=3, output_feat=3, kern_size=3,
-                 actfunc=nn.LeakyReLU(inplace=True), droprate=0.1, enabledrop=True, affine=True):
-        #3 input channels (rgb), 3 output classes: (cancer, normal tissue, background) 
-        super(NeuralNet, self).__init__()
-        # dropout on/off for training/validation
-        self.use_dropout = enabledrop
-        # inplace activation and dropout to save memory usage
-        self.dropout = nn.Dropout(droprate, inplace=True)
-        self.pool = nn.MaxPool2d(kernel_size = 2)
-        self.convin1 = nn.Conv2d(input_feat, feat1, kern_size, padding = 1)
-        self.conv12 = nn.Conv2d(feat1, feat2, kern_size, padding = 1) #from feature size 1 to size 2
-        self.conv23 = nn.Conv2d(feat2, feat3, kern_size, padding = 1)
-        self.conv34 = nn.Conv2d(feat3, feat4, kern_size, padding = 1)
-        self.conv45 = nn.Conv2d(feat4, feat5, kern_size, padding = 1)
-        self.conv54 = nn.Conv2d(feat5, feat4, kern_size, padding = 1) #from feature size 5 to 4
-        self.conv43 = nn.Conv2d(feat4, feat3, kern_size, padding = 1)
-        self.conv32 = nn.Conv2d(feat3, feat2, kern_size, padding = 1)
-        self.conv21 = nn.Conv2d(feat2, feat1, kern_size, padding = 1)
-        # output layer is a 1x1 convolution to reduce feature maps to number of output classes 
-        self.conv1out = nn.Conv2d(feat1, output_feat, 1)
-        self.conv11 = nn.Conv2d(feat1, feat1, kern_size, padding = 1)  #no reature increase
-        self.conv22 = nn.Conv2d(feat2, feat2, kern_size, padding = 1)
-        self.conv33 = nn.Conv2d(feat3, feat3, kern_size, padding = 1)
-        self.conv44 = nn.Conv2d(feat4, feat4, kern_size, padding = 1)
-        self.conv55 = nn.Conv2d(feat5, feat5, kern_size, padding = 1)
-        self.upconv1 = nn.ConvTranspose2d(feat5,feat4 , 2, stride=2)
-        self.upconv2 = nn.ConvTranspose2d(feat4,feat3 , 2, stride=2)
-        self.upconv3 = nn.ConvTranspose2d(feat3,feat2 , 2, stride=2)
-        self.upconv4 = nn.ConvTranspose2d(feat2,feat1 , 2, stride=2)
-        self.inst_norm1 = nn.InstanceNorm2d(feat1, affine=affine)
-        self.inst_norm2 = nn.InstanceNorm2d(feat2, affine=affine)
-        self.inst_norm3 = nn.InstanceNorm2d(feat3, affine=affine)
-        self.inst_norm4 = nn.InstanceNorm2d(feat4, affine=affine)
-        self.inst_norm5 = nn.InstanceNorm2d(feat5, affine=affine)
-        self.inst_normout = nn.InstanceNorm2d(output_feat, affine=affine)
-        self.activation = actfunc
+class ConvBlock(nn.Module):
+    def __init__(self, in_channel, out_channel, conv_kernel, padding, droprate=.0, Norm=nn.InstanceNorm2d, Activation=nn.LeakyReLU):
+        super(ConvBlock, self).__init__()
+        # in/out channel
+        self.in_ch = in_channel
+        self.out_ch = out_channel
+        # layers within conv block
+        self.Dropout = nn.Dropout(droprate, inplace=True)
+        self.Norm = Norm(out_channel, affine=True)
+        self.Activ = Activation(inplace=True)
+        self.Conv1 = nn.Conv2d(in_channel, out_channel, kernel_size=conv_kernel, padding=padding)
+        self.Conv2 = nn.Conv2d(out_channel, out_channel, kernel_size=conv_kernel, padding=padding)
+
+        # whole conv block 
+        self.Block = nn.Sequential(
+            self.Conv1,
+            self.Dropout,
+            self.Norm,
+            self.Activ,
+            self.Conv2,
+            self.Dropout,
+            self.Norm,
+            self.Activ
+        )
+
+    def forward(self, x):
+        x = self.Block(x)
+        return x
+
+class OutputBlock(nn.Module):
+    def __init__(self, in_channel, out_channel, kernel_size=1, droprate=.0, Norm=nn.InstanceNorm2d, Activation=nn.LeakyReLU):
+        super(OutputBlock, self).__init__()
+        # in and output channel
+        self.in_ch = in_channel
+        self.out_ch = out_channel
+
+        # forward block
+        self.Block = nn.Sequential(
+            nn.Conv2d(in_channel, out_channel, kernel_size),
+            nn.Dropout2d(droprate, inplace=True),
+            Norm(out_channel, affine=True),
+            Activation(inplace=True)
+        )
+
+    def forward(self, x):
+        return self.Block(x)
+
+class UNet(nn.Module):
+    def __init__(self, ch_level1, ch_level2, ch_level3, ch_level4, input_ch=3, output_ch=3, droprate=.0, Norm=nn.InstanceNorm2d, Activation=nn.LeakyReLU):
+        #3 input channel (rgb), 3 output classes: (cancer, normal tissue, background) 
+        super(UNet, self).__init__()
+        self.skips = []
+        # U_net
+        self.ConvBlock_in_1 = ConvBlock(input_ch, ch_level1, 3, 1, droprate, Norm, Activation)
+        self.ConvBlock_1_2 = ConvBlock(ch_level1, ch_level2, 3, 1, droprate, Norm, Activation)
+        self.ConvBlock_2_3 = ConvBlock(ch_level2, ch_level3, 3, 1, droprate, Norm, Activation)
+        self.Bottleneck = ConvBlock(ch_level3, ch_level4, 3, 1, droprate, Norm, Activation)
+        
+        self.ConvBlock_4_3 = ConvBlock(ch_level4, ch_level3, 3, 1, droprate, Norm, Activation)
+        self.ConvBlock_3_2 = ConvBlock(ch_level3, ch_level2, 3, 1, droprate, Norm, Activation)
+        self.ConvBlock_2_1 = ConvBlock(ch_level2, ch_level1, 3, 1, droprate, Norm, Activation)
+
+        self.Pooling = nn.MaxPool2d(kernel_size=2)
+
+        self.ConvT1 = nn.ConvTranspose2d(ch_level4, ch_level3, kernel_size=2, stride=2)
+        self.ConvT2 = nn.ConvTranspose2d(ch_level3, ch_level2, kernel_size=2, stride=2)
+        self.ConvT3 = nn.ConvTranspose2d(ch_level2, ch_level1, kernel_size=2, stride=2)
+
+        self.OutBlock = OutputBlock(ch_level1, output_ch, 1, droprate, Norm, Activation)
         
         
     def forward(self, x):
-        # forward pass has dropout option
-        if self.use_dropout:
-            return self.forw_drop(x)
-        else:
-            return self.forw_no_drop(x)
+        # level 1
+        x = self.ConvBlock_in_1(x)
+        self.skips.append(x.clone())
+        x = self.Pooling(x)
+        # level 2
+        x = self.ConvBlock_1_2(x)
+        self.skips.append(x.clone())
+        x = self.Pooling(x)
+        # level 3
+        x = self.ConvBlock_2_3(x)
+        self.skips.append(x.clone())
+        x = self.Pooling(x)
 
-    def forw_drop(self, x):
-        #way down
-        x = self.convin1(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm1(x)) # 1. increasing features
-        x = self.conv11(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm1(x)) # 2. no increase
-        copy1 = x.clone()  #make copy to concatenate later
-        x = self.pool(x)  #reduce resolution, increase receptive field
-
-        x = self.conv12(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm2(x)) # 1. increasing features
-        x = self.conv22(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm2(x)) # 2. no increase
-        copy2 = x.clone()  #make copy to concatenate later
-        x = self.pool(x)  #reduce resolution, increase receptive field
-        x = self.conv23(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm3(x)) # 1. increasing features
-        x = self.conv33(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm3(x)) # 2. no increase
-        copy3 = x.clone()  #make copy to concatenate later
-        x = self.pool(x)  #reduce resolution, increase receptive field
-        x = self.conv34(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm4(x)) # 1. increasing features
-        x = self.conv44(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm4(x)) # 2. no increase
-        copy4 = x.clone()  #make copy to concatenate later
         # bottleneck
-        x = self.pool(x)  #reduce resolution, increase receptive field
-        x = self.conv45(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm5(x)) # 1. increasing features
-        x = self.conv55(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm5(x)) # 2. no increase
+        x = self.Bottleneck(x)
 
-        #way up:
-        x = self.upconv1(x)
-        # skip connection
-        x = tc.cat((copy4, x), dim=1)
-        # delete copy to save GPU mem
-        del copy4  
-        x = self.conv54(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm4(x))
-        x = self.conv44(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm4(x))
-        x = self.upconv2(x)
-        x = tc.cat((copy3, x), dim=1) 
-        del copy3 
-        x = self.conv43(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm3(x))
-        x = self.conv33(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm3(x))
-        x = self.upconv3(x)
-        x = tc.cat((copy2, x), dim=1) 
-        del copy2
-        x = self.conv32(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm2(x))
-        x = self.conv22(x) 
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm2(x))
-        x = self.upconv4(x)
-        x = tc.cat((copy1, x), dim=1)
-        del copy1
-        x = self.conv21(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm1(x))
-        x = self.conv11(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_norm1(x))
-        x = self.conv1out(x)
-        x = self.dropout(x)
-        x = self.activation(self.inst_normout(x))
-        # output is images are  3x512x512, crop to ground truth output masks 500x500
-        return x[:, :, 6:506, 6:506]
-    
-    def forw_no_drop(self, x):
-        #way down
-        x = self.convin1(x)
-        x = self.activation(self.inst_norm1(x)) # 1. increasing features
-        x = self.conv11(x)
-        x = self.activation(self.inst_norm1(x)) # 2. no increase
-        copy1 = x.clone()  #make copy to concatenate later
-        x = self.pool(x)  #reduce resolution, increase receptive field
+        # level 3
+        x = self.ConvT1(x)
+        x = tc.cat([self.skips.pop(), x], dim=1)
+        x = self.ConvBlock_4_3(x)
+        # level 2
+        x = self.ConvT2(x)
+        x = tc.cat([self.skips.pop(), x], dim=1)
+        x = self.ConvBlock_3_2(x)
+        # level 1
+        x = self.ConvT3(x)
+        x = tc.cat([self.skips.pop(), x], dim=1)
+        x = self.ConvBlock_2_1(x)
 
-        x = self.conv12(x)
-        x = self.activation(self.inst_norm2(x)) # 1. increasing features
-        x = self.conv22(x)
-        x = self.activation(self.inst_norm2(x)) # 2. no increase
-        copy2 = x.clone()  #make copy to concatenate later
-        x = self.pool(x)  #reduce resolution, increase receptive field
-        x = self.conv23(x)
-        x = self.activation(self.inst_norm3(x)) # 1. increasing features
-        x = self.conv33(x)
-        x = self.activation(self.inst_norm3(x)) # 2. no increase
-        copy3 = x.clone()  #make copy to concatenate later
-        x = self.pool(x)  #reduce resolution, increase receptive field
-        x = self.conv34(x)
-        x = self.activation(self.inst_norm4(x)) # 1. increasing features
-        x = self.conv44(x)
-        x = self.activation(self.inst_norm4(x)) # 2. no increase
-        copy4 = x.clone()  #make copy to concatenate later
-        # bottleneck
-        x = self.pool(x)  #reduce resolution, increase receptive field
-        x = self.conv45(x)
-        x = self.activation(self.inst_norm5(x)) # 1. increasing features
-        x = self.conv55(x)
-        x = self.activation(self.inst_norm5(x)) # 2. no increase
+        return self.OutBlock(x)
 
-        #way up:
-        x = self.upconv1(x)
-        # skip connection
-        x = tc.cat((copy4, x), dim=1)
-        # delete copy to save GPU mem
-        del copy4  
-        x = self.conv54(x)
-        x = self.activation(self.inst_norm4(x))
-        x = self.conv44(x)
-        x = self.activation(self.inst_norm4(x))
-        x = self.upconv2(x)
-        x = tc.cat((copy3, x), dim=1) 
-        del copy3 
-        x = self.conv43(x)
-        x = self.activation(self.inst_norm3(x))
-        x = self.conv33(x)
-        x = self.activation(self.inst_norm3(x))
-        x = self.upconv3(x)
-        x = tc.cat((copy2, x), dim=1) 
-        del copy2
-        x = self.conv32(x)
-        x = self.activation(self.inst_norm2(x))
-        x = self.conv22(x) 
-        x = self.activation(self.inst_norm2(x))
-        x = self.upconv4(x)
-        x = tc.cat((copy1, x), dim=1)
-        del copy1
-        x = self.conv21(x)
-        x = self.activation(self.inst_norm1(x))
-        x = self.conv11(x)
-        x = self.activation(self.inst_norm1(x))
-        x = self.conv1out(x)
-        x = self.activation(self.inst_normout(x))
-        # output is images are  3x512x512, crop to ground truth output masks 500x500
-        return x[:, :, 6:506, 6:506]
+        
 
 
 if __name__ == "__main__":
 
-    test = NeuralNet(64, 128, 256, 512, 1024)
-    a = test(tc.ones(size=(1, 3, 512, 512)))
-    print(a.size()) # should be (1, 3, 500, 500)
+    unet = UNet(64, 128, 256, 512, 3, 3, .5)
+    unet.train()
+
+    a = tc.zeros(size=(1, 3, 256, 256))
+    print(unet(a).size())
