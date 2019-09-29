@@ -66,13 +66,6 @@ class Dice_and_CE(nn.Module):
     def forward(self, pred, target):
         return self.dice(pred, target) + self.ce(pred, target)
 
-class MirrorPad(object):
-    def __init__(self, padding):
-        self.padding = padding
-
-    def __call__(self, image):
-        return np.pad(image, self.padding, mode='symmetric')
-
 class Pixel_Accuracy(nn.Module):
     def __init__(self, device):
         super(Pixel_Accuracy, self).__init__()

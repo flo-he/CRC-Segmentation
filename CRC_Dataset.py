@@ -1,5 +1,6 @@
 import torch
-from torchvision.transforms import ToTensor, Compose
+from torchvision.transforms import Compose
+from transforms import ToTensor
 import numpy as np
 import glob
 import os
@@ -101,9 +102,9 @@ class CRC_Dataset(torch.utils.data.Dataset):
         label = np.load(self.labels[idx])['arr_0']
 
         # apply transformations 
-        image = self.composed_trsfm(image)
+        image, label = self.composed_trsfm((image, label))
 
-        return image, torch.from_numpy(label).long()
+        return image, label
 
 def compute_mean_and_std(dataloader, device):
     '''
