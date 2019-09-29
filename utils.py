@@ -73,18 +73,6 @@ class MirrorPad(object):
     def __call__(self, image):
         return np.pad(image, self.padding, mode='symmetric')
 
-class complex_net(nn.Module):
-    '''
-    Literally just for testing the trainer.
-    '''
-    def __init__(self):
-        super(complex_net, self).__init__()
-        self.conv = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=5)
-        self.activ = nn.ReLU()
-
-    def forward(self, x):
-        return self.activ(self.conv(self.conv(self.conv(x))))
-
 class Pixel_Accuracy(nn.Module):
     def __init__(self, device):
         super(Pixel_Accuracy, self).__init__()
