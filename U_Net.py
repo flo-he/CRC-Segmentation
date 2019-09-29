@@ -8,7 +8,7 @@ class ConvBlock(nn.Module):
         self.in_ch = in_channel
         self.out_ch = out_channel
         # layers within conv block
-        self.Dropout = nn.Dropout(droprate, inplace=True)
+        self.Dropout = nn.Dropout2d(droprate, inplace=True)
         self.Norm = Norm(out_channel, affine=True)
         self.Activ = Activation(inplace=True)
         self.Conv1 = nn.Conv2d(in_channel, out_channel, kernel_size=conv_kernel, padding=padding)
@@ -49,9 +49,14 @@ class OutputBlock(nn.Module):
         return self.Block(x)
 
 class UNet(nn.Module):
-    def __init__(self, ch_level1, ch_level2, ch_level3, ch_level4, input_ch=3, output_ch=3, droprate=.0, Norm=nn.InstanceNorm2d, Activation=nn.LeakyReLU):
+    def __init__(self, img_shape, mask_shape, ch_level1, ch_level2, ch_level3, ch_level4, input_ch=3, output_ch=3, droprate=.0, Norm=nn.InstanceNorm2d, Activation=nn.LeakyReLU):
         #3 input channel (rgb), 3 output classes: (cancer, normal tissue, background) 
         super(UNet, self).__init__()
+        # save input shape and determine output crop size
+        self.inp_shape = img_shape
+        self.out_shape = mask_shape
+        self.crop_px, self.img_along_dim = self.determine_output_crop(img_shape, mask_shape)
+        # list for holding the copies for skip connections
         self.skips = []
         # U_net
         self.ConvBlock_in_1 = ConvBlock(input_ch, ch_level1, 3, 1, droprate, Norm, Activation)
@@ -101,15 +106,30 @@ class UNet(nn.Module):
         x = self.ConvT3(x)
         x = tc.cat([self.skips.pop(), x], dim=1)
         x = self.ConvBlock_2_1(x)
+        x = self.OutBlock(x)
 
-        return self.OutBlock(x)
+        return x[:, :, self.crop_px:self.img_along_dim-self.crop_px, self.crop_px:self.img_along_dim-self.crop_px]
 
-        
+    def determine_output_crop(self, inp_shape, desired_output_shape):
+        # assume squared images
+        assert inp_shape[0] == inp_shape[1]
+        assert desired_output_shape[0] == desired_output_shape[1]
+
+        # height/width of img/mask
+        img_along_dim, mask_along_dim = inp_shape[0],  desired_output_shape[0]
+
+        # extra pixel border of input on each side of the image
+        extra_px_border = int((img_along_dim - mask_along_dim) / 2)
+
+        return extra_px_border, img_along_dim
+
+
+
 
 
 if __name__ == "__main__":
 
-    unet = UNet(64, 128, 256, 512, 3, 3, .5)
+    unet = UNet((256, 256), (250, 250), 64, 128, 256, 512, 3, 3, .5)
     unet.train()
 
     a = tc.zeros(size=(1, 3, 256, 256))
