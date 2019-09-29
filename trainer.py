@@ -2,12 +2,11 @@ import numpy as np
 import os
 import time
 import torch
-from dataloading import CV_Splits
+from CRC_Dataset import CV_Splits
 from copy import deepcopy
 from utils import get_train_logger, Loss_EMA
 
 
-### NEEDS TESTING ONCE U-NET ASSEMBLED
 class Trainer(object):
     '''
     The U-Net trainer class. It wraps the main training process including dataloading, cross validation, and progress saving.   \n
@@ -71,6 +70,9 @@ class Trainer(object):
         # push model to GPU if available
         self.model.to(device)
 
+        # add tracking of losses for plotting progress
+        self.loss_tracker = torch.zeros(size=(self.EPOCHS, 4))
+ 
         # resume training if chkpts are given
         self.resume_training(train_from_chkpts)
         if train_from_chkpts:
@@ -93,12 +95,12 @@ class Trainer(object):
         # list for holding state dicts
         self.opt_state_dicts = []
         self.model_state_dicts = []
-        
+
     def resume_training(self, chkpts):
         if chkpts:  
-            model_chkpt, opt_chkpt = chkpts
+            model_chkpt, opt_chkpt, loss_chkpt = chkpts
             try:
-                self.load_progress(model_chkpt, opt_chkpt) 
+                self.load_progress(model_chkpt, opt_chkpt, loss_chkpt) 
                 self.logger.info("Restored model and optimizer settings.")
             except Exception as exc:
                 self.logger.warning("Failed to restore model and optimizer settings.")
@@ -234,6 +236,12 @@ class Trainer(object):
             curr_tr_loss, curr_val_loss = self.avg_tr_losses[fold_idx], self.avg_val_losses[fold_idx]
             tr_ma, val_ma = self.ema(curr_tr_loss, curr_val_loss)
 
+            # track losses (epochs start with 1)
+            self.loss_tracker[epoch-1, 0] = curr_tr_loss
+            self.loss_tracker[epoch-1, 1] = curr_val_loss
+            self.loss_tracker[epoch-1, 2] = tr_ma
+            self.loss_tracker[epoch-1, 3] = val_ma
+
             # maybe adjust learning rate
             self.lr_scheduler.step(val_ma)
 
@@ -252,16 +260,25 @@ class Trainer(object):
             # save model and optimizer state to disc
             if epoch % 5 == 0:
                 self.logger.info(f"Saving Progress to {self.OUTPUT_DIR}")
-            self.save_progress(epoch)
+                self.save_progress(epoch)
 
     def save_progress(self, epoch):
         # filenames
         model_chkpt = os.path.join(self.OUTPUT_DIR, f"model_chkpt_{epoch}.pt")
         opt_chkpt = os.path.join(self.OUTPUT_DIR, f"optimizer_chkpt_{epoch}.pt")
 
+        # model state dicts
         torch.save(self.model.state_dict(), model_chkpt)
         torch.save(self.optimizer.state_dict(), opt_chkpt)
 
-    def load_progress(self, model_path, opt_path):
+        # loss tracking
+        torch.save(self.loss_tracker, os.path.join(self.OUTPUT_DIR, f"loss_arr_{epoch}.pt"))
+        
+
+    def load_progress(self, model_path, opt_path, loss_path):
+        # load model and optimizer
         self.model.load_state_dict(torch.load(model_path))
         self.optimizer.load_state_dict(torch.load(opt_path))
+
+        # load loss tracker
+        self.loss_tracker = torch.load(loss_path)
