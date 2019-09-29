@@ -55,7 +55,7 @@ class UNet(nn.Module):
         # save input shape and determine output crop size
         self.inp_shape = img_shape
         self.out_shape = mask_shape
-        self.crop_px, self.img_along_dim = self.determine_output_crop(img_shape, mask_shape)
+        self.crop_px = self.determine_output_crop(img_shape, mask_shape)
         # list for holding the copies for skip connections
         self.skips = []
         # U_net
@@ -108,7 +108,7 @@ class UNet(nn.Module):
         x = self.ConvBlock_2_1(x)
         x = self.OutBlock(x)
 
-        return x[:, :, self.crop_px:self.img_along_dim-self.crop_px, self.crop_px:self.img_along_dim-self.crop_px]
+        return x[:, :, self.crop_px:-self.crop_px, self.crop_px:-self.crop_px]
 
     def determine_output_crop(self, inp_shape, desired_output_shape):
         # assume squared images
@@ -121,7 +121,7 @@ class UNet(nn.Module):
         # extra pixel border of input on each side of the image
         extra_px_border = int((img_along_dim - mask_along_dim) / 2)
 
-        return extra_px_border, img_along_dim
+        return extra_px_border
 
 
 
