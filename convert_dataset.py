@@ -25,7 +25,7 @@ def drop_empty_image(x, drop_threshold):
     else:
         return False
 
-def check_for_valid_seg_map(image, mask, drop_threshold=0.15):
+def check_for_valid_seg_map(image, mask, drop_threshold=0.075):
     '''
     Drop the mask from the dataset, if it does not overlap with the corresponding image sufficiently.
 
@@ -40,8 +40,10 @@ def check_for_valid_seg_map(image, mask, drop_threshold=0.15):
     img_gray = np.abs(img_gray - 255.)
 
     # plotting just for checking by eye
+    #plt.figure(figsize=(15, 8))
     #plt.subplot(131)
     #plt.imshow(img_gray / 255, cmap="gray")
+    #plt.axis("off")
 
     # smooth the image, so that small black gaps in tissue do not raise false alarm
     # (masks do not these little gaps and treat them as tissue anyway)
@@ -51,8 +53,10 @@ def check_for_valid_seg_map(image, mask, drop_threshold=0.15):
     # plotting just for checking by eye
     #plt.subplot(132)
     #plt.imshow(img_gray, cmap='gray')
+    #plt.axis("off")
     #plt.subplot(133)
     #plt.imshow(mask, cmap="gray")
+    #plt.axis("off")
     #plt.show()
 
     # which pixel are non background according to the mask?
@@ -76,8 +80,10 @@ def check_for_valid_seg_map(image, mask, drop_threshold=0.15):
 
     # image is valid if the amount of empty pixels is not too high
     if rel_amount < drop_threshold:
+        #print("valid")
         return True
     else:
+        #print("not valid")
         return False
 
 def convert_dataset(masks_fnames, output_dir, drop_threshold=0.):
