@@ -3,7 +3,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-from CRC_Dataset import CRC_Dataset
+#from CRC_Dataset import CRC_Dataset
 
 class RandomCrop(object):
     '''

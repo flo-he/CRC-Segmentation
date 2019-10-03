@@ -55,6 +55,7 @@ class UNet(nn.Module):
         # save input shape and determine output crop size
         self.inp_shape = img_shape
         self.out_shape = mask_shape
+        # px border to be cropped in the output
         self.crop_px = self.determine_output_crop(img_shape, mask_shape)
         # list for holding the copies for skip connections
         self.skips = []
@@ -80,15 +81,15 @@ class UNet(nn.Module):
     def forward(self, x):
         # level 1
         x = self.ConvBlock_in_1(x)
-        self.skips.append(x.clone())
+        self.skips.append(x)
         x = self.Pooling(x)
         # level 2
         x = self.ConvBlock_1_2(x)
-        self.skips.append(x.clone())
+        self.skips.append(x)
         x = self.Pooling(x)
         # level 3
         x = self.ConvBlock_2_3(x)
-        self.skips.append(x.clone())
+        self.skips.append(x)
         x = self.Pooling(x)
 
         # bottleneck
@@ -108,7 +109,10 @@ class UNet(nn.Module):
         x = self.ConvBlock_2_1(x)
         x = self.OutBlock(x)
 
-        return x[:, :, self.crop_px:-self.crop_px, self.crop_px:-self.crop_px]
+        if self.crop_px > 0:
+            return x[:, :, self.crop_px:-self.crop_px, self.crop_px:-self.crop_px]
+        else:
+            return x
 
     def determine_output_crop(self, inp_shape, desired_output_shape):
         # assume squared images
@@ -129,8 +133,8 @@ class UNet(nn.Module):
 
 if __name__ == "__main__":
 
-    unet = UNet((256, 256), (250, 250), 64, 128, 256, 512, 3, 3, .5)
+    unet = UNet((256, 256), (256, 256), 64, 128, 256, 512, 3, 3, .5)
     unet.train()
 
-    a = tc.zeros(size=(1, 3, 256, 256))
+    a = tc.randn(size=(1, 3, 256, 256))
     print(unet(a).size())

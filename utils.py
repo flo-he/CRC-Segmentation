@@ -16,20 +16,14 @@ class Dice_Loss(nn.Module):
         :target: target segmentation mask of shape [B, H, W]
     '''
     
-    def __init__(self, device, n_classes=3):
+    def __init__(self, n_classes=3):
         super(Dice_Loss, self).__init__()
         self.n_classes = n_classes
-        self.device = device
-
-        if self.device.type == "cuda":
-            self.tensortype = torch.cuda.FloatTensor
-        else:
-            self.tensortype = torch.FloatTensor
 
     def forward(self, pred, target):
         
         # convert target N x H x W to N x n_classes x H x W
-        target_one_hot = torch.eye(self.n_classes)[target].permute(0, 3, 1, 2).type(self.tensortype)
+        target_one_hot = torch.eye(self.n_classes)[target].permute(0, 3, 1, 2).type(pred.type())
 
         # compute softmax of prediction
         probs = nn.functional.softmax(pred, dim=1)
@@ -44,9 +38,9 @@ class Dice_Loss(nn.Module):
         return  dice_per_inst.mean()
         
 class Dice_Score(nn.Module):
-    def __init__(self, device, n_classes=3):
+    def __init__(self, n_classes=3):
         super(Dice_Score, self).__init__()
-        self.dice_loss = Dice_Loss(device, n_classes)
+        self.dice_loss = Dice_Loss(n_classes)
 
     def forward(self, pred, target):
         return -self.dice_loss(pred, target)
@@ -57,26 +51,20 @@ class Dice_and_CE(nn.Module):
     See Dice_loss doc and pytorch's CrossEntropyLoss class for info.
     '''
 
-    def __init__(self, device,  n_classes=3):
+    def __init__(self, n_classes=3):
         super(Dice_and_CE, self).__init__()
         self.n_classes = n_classes
-        self.dice = Dice_Loss(device, n_classes)
+        self.dice = Dice_Loss(n_classes)
         self.ce = nn.CrossEntropyLoss()
 
     def forward(self, pred, target):
         return self.dice(pred, target) + self.ce(pred, target)
 
 class Pixel_Accuracy(nn.Module):
-    def __init__(self, device):
+    def __init__(self, mask_shapes):
         super(Pixel_Accuracy, self).__init__()
-        self.mask_shapes = (500, 500)
+        self.mask_shapes = mask_shapes
         self.n_pixel = np.prod(self.mask_shapes)
-        self.device = device 
-
-        if self.device.type == "cuda":
-            self.tensortype = torch.cuda.FloatTensor
-        else:
-            self.tensortype = torch.FloatTensor
 
 
     def forward(self, pred, target):
@@ -88,7 +76,7 @@ class Pixel_Accuracy(nn.Module):
         diff = (pred_masks - target).view(-1, self.n_pixel)
 
         # count correctly predicted pixels per batch instance
-        accuracies = (diff == 0).sum(dim=1).type(self.tensortype) / self.n_pixel
+        accuracies = (diff == 0).sum(dim=1).type(pred.type()) / self.n_pixel
 
         return accuracies.mean()
 

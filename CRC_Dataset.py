@@ -4,9 +4,6 @@ from transforms import ToTensor
 import numpy as np
 import glob
 import os
-#import time 
-#from utils import MirrorPad
-#import matplotlib.pyplot as plt
 
 class CV_Splits(object):
     '''
@@ -143,6 +140,11 @@ def compute_mean_class_occurences(dataloader):
 
     
 if __name__ == "__main__":
+
+    import time 
+    from utils import MirrorPad
+    import matplotlib.pyplot as plt
+
     # test
     dataset = CRC_Dataset(root_dir = os.path.join(os.getcwd(), 'data\\train'))
 
@@ -165,10 +167,11 @@ if __name__ == "__main__":
         num_workers = 2
     )
 
-    occurences = compute_mean_class_occurences(dataloader)
-    print(occurences) #rounded [131383, 68638, 49979]
-    #mean, std = compute_mean_and_std(dataloader, device="cuda:0") #set to "cpu" if not gpu is available
-    #print(mean, std) #prints approx. mean=(0.7979, 0.6772, 0.7768), std=(0.1997, 0.3007, 0.2039)
+    #occurences = compute_mean_class_occurences(dataloader)
+    #print(occurences) #rounded [131383, 68638, 49979]
+    mean, std = compute_mean_and_std(dataloader, device="cpu") #set to "cpu" if not gpu is available
+    print(mean, std) #prints approx. mean=(0.7979, 0.6772, 0.7768), std=(0.1997, 0.3007, 0.2039)
+    # new (11.033 samples): mean=(0.7942, 0.6693, 0.7722), std=(0.1998, 0.3008, 0.2037)
 
 
 

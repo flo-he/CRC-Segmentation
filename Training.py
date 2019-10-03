@@ -39,20 +39,19 @@ def main():
     dataset_tr = CRC_Dataset(
         root_dir = os.path.join(os.getcwd(), "data\\train"),
         transforms = [
-            transforms.RandomCrop(crop_shape=(250, 250)),
+            transforms.RandomCrop(crop_shape=(256, 256)),
             transforms.RandomFlip(),
-            transforms.MirrorPad(padding=((3,), (3,), (0,))),
+            #transforms.MirrorPad(padding=((3,), (3,), (0,))),
             transforms.ToTensor(),
-            transforms.Normalize(means=(0.7979, 0.6772, 0.7768), stds=(0.1997, 0.3007, 0.2039))
+            transforms.Normalize(means=(0.7942, 0.6693, 0.7722), stds=(0.1998, 0.3008, 0.2037))
         ]
     )
 
     # set model, optimizer and loss criterion
-    model = UNet((256, 256), (250, 250), 64, 128, 256, 512)
+    model = UNet((256, 256), (256, 256), 64, 128, 256, 512)
     optimizer = optim.Adam(model.parameters(), lr=5e-4, weight_decay=3e-5)
     # use reweighted cross entropy
     criterion = nn.CrossEntropyLoss(weight=torch.tensor([1/131383, 1/68638, 1/49979]))
-    #criterion = Dice_and_CE(device).to(device)
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=10, min_lr=1e-6, verbose=True)
 
     # initialize trainer class
