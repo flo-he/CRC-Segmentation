@@ -162,6 +162,7 @@ class Trainer(object):
         # eval mode takes care of skipping dropout layers
         self.model.eval()
         with torch.no_grad():
+            self.logger.debug(f"Validating...")
             # validate on leftover fold
             for idx, (image, mask) in enumerate(d_val):
                 # get image batch and label batch
@@ -243,7 +244,7 @@ class Trainer(object):
             self.loss_tracker[epoch-1, 3] = val_ma
 
             # maybe adjust learning rate
-            self.lr_scheduler.step(val_ma)
+            self.lr_scheduler.step(tr_ma)
 
             # print/log info (add logging later)
             self.logger.info(f"avg. CV tr. losses: {self.avg_tr_losses}")

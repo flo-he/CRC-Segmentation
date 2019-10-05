@@ -9,7 +9,7 @@ class ConvBlock(nn.Module):
         self.out_ch = out_channel
         # layers within conv block
         self.Dropout = nn.Dropout2d(droprate, inplace=True)
-        self.Norm = Norm(out_channel, affine=True)
+        self.Norm = Norm(out_channel, affine=True, track_running_stats=True)
         self.Activ = Activation(inplace=True)
         self.Conv1 = nn.Conv2d(in_channel, out_channel, kernel_size=conv_kernel, padding=padding)
         self.Conv2 = nn.Conv2d(out_channel, out_channel, kernel_size=conv_kernel, padding=padding)
@@ -41,7 +41,7 @@ class OutputBlock(nn.Module):
         self.Block = nn.Sequential(
             nn.Conv2d(in_channel, out_channel, kernel_size),
             nn.Dropout2d(droprate, inplace=True),
-            Norm(out_channel, affine=True),
+            Norm(out_channel, affine=True, track_running_stats=True),
             Activation(inplace=True)
         )
 

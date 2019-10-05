@@ -19,18 +19,21 @@ from U_Net import UNet
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.backends.cudnn.benchmark = torch.cuda.is_available()
 
+
 train_dict= {
     "device" : device,
     # ~ 55.000 batch updates -> 55.000/250 = 220 epochs
-    "epochs" : 220,
-    "batch_size" : 16,
+    "epochs" : 250,
+    "batch_size" : 8,
     "cv_folds": 5,
     # 1 epoch = 250 batches -> images per epoch = batch size * batches per epoch
-    "images_per_epoch" : int(250*16),
+    "images_per_epoch" : int(250*8),
     "pin_mem" : torch.cuda.is_available(),
     "num_workers" : 2,
-    "output_dir" : "model_test\\",
-    "train_from_chkpts" : [],
+    "output_dir" : "model_medium\\",
+    "train_from_chkpts" : [],#["C:\AML_seg_proj\CRC-Segmentation\model_small\model_chkpt_75.pt",
+                           #"C:\AML_seg_proj\CRC-Segmentation\model_small\optimizer_chkpt_75.pt",
+                           #"C:\AML_seg_proj\CRC-Segmentation\model_small\loss_arr_75.pt"],
     "log_level" : logging.DEBUG
 }
 
@@ -48,15 +51,21 @@ def main():
     )
 
     # set model, optimizer and loss criterion
-    model = UNet((256, 256), (256, 256), 64, 128, 256, 512)
+    model = UNet((256, 256), (256, 256), 64, 128, 256, 512, Norm=nn.InstanceNorm2d)
     optimizer = optim.Adam(model.parameters(), lr=5e-4, weight_decay=3e-5)
+
+    # compute class weights
+    #t = 1/torch.tensor([131383/250000, 68638/250000, 49979/250000])
+    #softmax = torch.exp(t) / torch.exp(t).sum()
+    #print(f"Class weights for cross entropy: {softmax}")
     # use reweighted cross entropy
-    criterion = nn.CrossEntropyLoss(weight=torch.tensor([1/131383, 1/68638, 1/49979]))
-    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=10, min_lr=1e-6, verbose=True)
+    #criterion = nn.CrossEntropyLoss(softmax.to(device))
+    criterion = nn.CrossEntropyLoss()
+    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=5, min_lr=1e-6, verbose=True)
 
     # initialize trainer class
     trainer = Trainer(model, optimizer, criterion, lr_scheduler, dataset_tr, **train_dict)
-
+    
     # start training
     trainer.run_training()
 

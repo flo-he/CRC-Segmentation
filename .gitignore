@@ -3,7 +3,8 @@ __pycache__/
 daten/
 models/
 model_new/
-model_test/
 training_plots/
 log/
 input_output_images/
+model_small/
+model_medium/
