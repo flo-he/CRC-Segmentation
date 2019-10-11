@@ -22,7 +22,7 @@ class RandomCrop(object):
         img, mask = sample
         img_h, mask_h = img.shape[0], mask.shape[0]
         
-        available_range = (img_h - self.crop_along_dim) // 2
+        available_range = img_h - self.crop_along_dim
 
         offset = np.random.randint(available_range)
 
