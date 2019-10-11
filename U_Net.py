@@ -9,7 +9,7 @@ class ConvBlock(nn.Module):
         self.out_ch = out_channel
         # layers within conv block
         self.Dropout = nn.Dropout2d(droprate, inplace=True)
-        self.Norm = Norm(out_channel, affine=True, track_running_stats=True)
+        self.Norm = Norm(32, out_channel, affine=True) if (Norm == nn.GroupNorm) else Norm(out_channel, affine=True)
         self.Activ = Activation(inplace=True)
         self.Conv1 = nn.Conv2d(in_channel, out_channel, kernel_size=conv_kernel, padding=padding)
         self.Conv2 = nn.Conv2d(out_channel, out_channel, kernel_size=conv_kernel, padding=padding)
@@ -41,7 +41,7 @@ class OutputBlock(nn.Module):
         self.Block = nn.Sequential(
             nn.Conv2d(in_channel, out_channel, kernel_size),
             nn.Dropout2d(droprate, inplace=True),
-            Norm(out_channel, affine=True, track_running_stats=True),
+            Norm(3, out_channel, affine=True) if (Norm==nn.GroupNorm) else Norm(out_channel, affine=True),
             Activation(inplace=True)
         )
 
@@ -49,7 +49,7 @@ class OutputBlock(nn.Module):
         return self.Block(x)
 
 class UNet(nn.Module):
-    def __init__(self, img_shape, mask_shape, ch_level1, ch_level2, ch_level3, ch_level4, input_ch=3, output_ch=3, droprate=.0, Norm=nn.InstanceNorm2d, Activation=nn.LeakyReLU):
+    def __init__(self, img_shape, mask_shape, ch_level1, ch_level2, ch_level3, ch_level4, ch_level5, input_ch=3, output_ch=3, droprate=.0, Norm=nn.InstanceNorm2d, Activation=nn.LeakyReLU):
         #3 input channel (rgb), 3 output classes: (cancer, normal tissue, background) 
         super(UNet, self).__init__()
         # save input shape and determine output crop size
@@ -60,22 +60,25 @@ class UNet(nn.Module):
         # list for holding the copies for skip connections
         self.skips = []
         # U_net
-        self.ConvBlock_in_1 = ConvBlock(input_ch, ch_level1, 3, 1, droprate, Norm, Activation)
+        self.ConvBlock_in_1 = ConvBlock(input_ch, ch_level1, 3, 1, .0, Norm, Activation)
         self.ConvBlock_1_2 = ConvBlock(ch_level1, ch_level2, 3, 1, droprate, Norm, Activation)
         self.ConvBlock_2_3 = ConvBlock(ch_level2, ch_level3, 3, 1, droprate, Norm, Activation)
-        self.Bottleneck = ConvBlock(ch_level3, ch_level4, 3, 1, droprate, Norm, Activation)
+        self.ConvBlock_3_4 = ConvBlock(ch_level3, ch_level4, 3, 1, droprate, Norm, Activation)
+        self.Bottleneck = ConvBlock(ch_level4, ch_level5, 3, 1, droprate, Norm, Activation)
         
+        self.ConvBlock_bottle_4 = ConvBlock(ch_level5, ch_level4, 3, 1, droprate, Norm, Activation)
         self.ConvBlock_4_3 = ConvBlock(ch_level4, ch_level3, 3, 1, droprate, Norm, Activation)
         self.ConvBlock_3_2 = ConvBlock(ch_level3, ch_level2, 3, 1, droprate, Norm, Activation)
         self.ConvBlock_2_1 = ConvBlock(ch_level2, ch_level1, 3, 1, droprate, Norm, Activation)
 
         self.Pooling = nn.MaxPool2d(kernel_size=2)
 
+        self.ConvT0 = nn.ConvTranspose2d(ch_level5, ch_level4, kernel_size=2, stride=2)
         self.ConvT1 = nn.ConvTranspose2d(ch_level4, ch_level3, kernel_size=2, stride=2)
         self.ConvT2 = nn.ConvTranspose2d(ch_level3, ch_level2, kernel_size=2, stride=2)
         self.ConvT3 = nn.ConvTranspose2d(ch_level2, ch_level1, kernel_size=2, stride=2)
 
-        self.OutBlock = OutputBlock(ch_level1, output_ch, 1, droprate, Norm, Activation)
+        self.OutBlock = OutputBlock(ch_level1, output_ch, 1, .0, Norm, Activation)
         
         
     def forward(self, x):
@@ -92,8 +95,16 @@ class UNet(nn.Module):
         self.skips.append(x)
         x = self.Pooling(x)
 
+        x = self.ConvBlock_3_4(x)
+        self.skips.append(x)
+        x = self.Pooling(x)
+
         # bottleneck
         x = self.Bottleneck(x)
+
+        x = self.ConvT0(x)
+        x = tc.cat([self.skips.pop(), x], dim=1)
+        x = self.ConvBlock_bottle_4(x)
 
         # level 3
         x = self.ConvT1(x)
