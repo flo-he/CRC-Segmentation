@@ -64,11 +64,13 @@ def main():
         pin_memory = use_cuda,        
     )
 
-    model = UNet((512, 512), (500, 500), 64, 128, 256, 512)
+    model = UNet((512, 512), (500, 500), 32, 64, 128, 256, 512, droprate=0.5, Norm=torch.nn.BatchNorm2d)
+    #model = UNet((512, 512), (500, 500), 32, 64, 128, 256, Norm=torch.nn.BatchNorm2d)
     model.load_state_dict(torch.load(chkpt))
     model.to(device)
     
-    compute_metrics_on_test_set(model, test_loader)
+    dice, acc = compute_metrics_on_test_set(model, test_loader)
+    print(dice, acc)
 
 
 

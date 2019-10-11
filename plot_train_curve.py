@@ -18,10 +18,10 @@ try:
 except FileExistsError:
     pass
 
-train_data_path = args.checkpoint_file
+train_data_path = args.loss_array
 
 # load in data
-train_data = torch.load(train_data_path).numpy()
+train_data = torch.load(train_data_path).numpy()[:175, :]
 print(train_data.shape)
 n_epochs = train_data.shape[0] + 1
 epoch_arr = np.arange(n_epochs)[1:]

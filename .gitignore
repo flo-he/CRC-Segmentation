@@ -8,3 +8,11 @@ log/
 input_output_images/
 model_small/
 model_medium/
+model_medium_drop/
+model_medium_drop_group/
+model_large_drop_group/
+model_large_drop_batch/
+model_large_drop_batch_dice/
+model_large_drop_batch_dice_ce/
+model_small_dice_ce/
+model_large_drop_batch_ce/
