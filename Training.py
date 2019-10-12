@@ -30,11 +30,11 @@ train_dict= {
     "images_per_epoch" : int(250*16),
     "pin_mem" : torch.cuda.is_available(),
     "num_workers" : 2,
-    "output_dir" : "model_large_drop_batch_ce\\",
-    "train_from_chkpts" : ["C:\AML_seg_proj\CRC-Segmentation\model_large_drop_batch_ce\model_chkpt_65.pt",
-                           "C:\AML_seg_proj\CRC-Segmentation\model_large_drop_batch_ce\optimizer_chkpt_65.pt",
-                           "C:\AML_seg_proj\CRC-Segmentation\model_large_drop_batch_ce\loss_arr_65.pt"],
-    "log_level" : logging.DEBUG
+    "output_dir" : "model_large_drop_batch_dice_ce\\",
+    "train_from_chkpts" : [],#["C:\AML_seg_proj\CRC-Segmentation\model_large_drop_batch_dice_ce\model_chkpt_60.pt",
+                           #"C:\AML_seg_proj\CRC-Segmentation\model_large_drop_batch_dice_ce\optimizer_chkpt_60.pt",
+                           #"C:\AML_seg_proj\CRC-Segmentation\model_large_drop_batch_dice_ce\loss_arr_60.pt"],
+    "log_level" : logging.INFO
 }
 
 def main():
@@ -55,8 +55,9 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=5e-4, weight_decay=3e-5)
 
     # compute class weights
-    #t = 1/torch.tensor([131383/250000, 68638/250000, 49979/250000])
-    criterion = nn.CrossEntropyLoss()
+    #weights = torch.tensor([0.181, 0.345, 0.474]).to(device)
+    #criterion = nn.CrossEntropyLoss(weights)
+    criterion = Dice_and_CE()
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=5, min_lr=1e-6, verbose=True)
 
     # initialize trainer class
