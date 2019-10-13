@@ -2,7 +2,7 @@ import torch as tc
 import torch.nn as nn
 
 class ConvBlock(nn.Module):
-    def __init__(self, in_channel, out_channel, conv_kernel, padding, droprate=.0, Norm=nn.InstanceNorm2d, Activation=nn.LeakyReLU):
+    def __init__(self, in_channel, out_channel, conv_kernel, padding, droprate=.0, Norm=nn.BatchNorm2d, Activation=nn.LeakyReLU):
         super(ConvBlock, self).__init__()
         # in/out channel
         self.in_ch = in_channel
@@ -31,7 +31,7 @@ class ConvBlock(nn.Module):
         return x
 
 class OutputBlock(nn.Module):
-    def __init__(self, in_channel, out_channel, kernel_size=1, droprate=.0, Norm=nn.InstanceNorm2d, Activation=nn.LeakyReLU):
+    def __init__(self, in_channel, out_channel, kernel_size=1, droprate=.0, Norm=nn.BatchNorm2d, Activation=nn.LeakyReLU):
         super(OutputBlock, self).__init__()
         # in and output channel
         self.in_ch = in_channel
@@ -49,7 +49,7 @@ class OutputBlock(nn.Module):
         return self.Block(x)
 
 class UNet(nn.Module):
-    def __init__(self, img_shape, mask_shape, ch_level1, ch_level2, ch_level3, ch_level4, ch_level5, input_ch=3, output_ch=3, droprate=.0, Norm=nn.InstanceNorm2d, Activation=nn.LeakyReLU):
+    def __init__(self, img_shape, mask_shape, ch_level1, ch_level2, ch_level3, ch_level4, ch_level5, input_ch=3, output_ch=3, droprate=.0, Norm=nn.BatchNorm2d, Activation=nn.LeakyReLU):
         #3 input channel (rgb), 3 output classes: (cancer, normal tissue, background) 
         super(UNet, self).__init__()
         # save input shape and determine output crop size
@@ -94,14 +94,15 @@ class UNet(nn.Module):
         x = self.ConvBlock_2_3(x)
         self.skips.append(x)
         x = self.Pooling(x)
-
+        # level 4
         x = self.ConvBlock_3_4(x)
         self.skips.append(x)
         x = self.Pooling(x)
 
-        # bottleneck
+        # bottleneck (level 5)
         x = self.Bottleneck(x)
 
+        # level 4 up
         x = self.ConvT0(x)
         x = tc.cat([self.skips.pop(), x], dim=1)
         x = self.ConvBlock_bottle_4(x)
@@ -120,6 +121,7 @@ class UNet(nn.Module):
         x = self.ConvBlock_2_1(x)
         x = self.OutBlock(x)
 
+        # maybe crop to right shape
         if self.crop_px > 0:
             return x[:, :, self.crop_px:-self.crop_px, self.crop_px:-self.crop_px]
         else:
