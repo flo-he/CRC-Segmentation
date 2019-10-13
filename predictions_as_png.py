@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 import imageio
 import os
 from U_Net import UNet
+from utils import Dice_Score, Pixel_Accuracy
 
-output_dir = os.path.join(os.getcwd(), "input_output_images\\model_large_drop_batch_dice")
+output_dir = os.path.join(os.getcwd(), "input_output_images\\model_large_drop_batch_wce")
 
 try:
     os.makedirs(output_dir)
@@ -39,15 +40,18 @@ def main():
         "C:\\AML_seg_proj\\CRC-Segmentation\\data\\test\\frames\\frame#139.npz",
         "C:\\AML_seg_proj\\CRC-Segmentation\\data\\test\\frames\\frame#26.npz"
     ]
-    chkpt = "C:\\AML_seg_proj\\CRC-Segmentation\\model_large_drop_batch_dice\\model_chkpt_175.pt"
+    chkpt = "C:\\AML_seg_proj\\CRC-Segmentation\\model_large_drop_batch_wce\\model_chkpt_30.pt"
     # transforms to apply
     composed = Compose([transforms.MirrorPad(((6,), (6,), (0,))), transforms.ToTensor(), transforms.Normalize(means=(0.7942, 0.6693, 0.7722), stds=(0.1998, 0.3008, 0.2037))])
 
     # model
     #model = UNet((512, 512), (500, 500), 32, 64, 128, 256, 512, droprate=0.5, Norm=torch.nn.BatchNorm2d)
     model = UNet((512, 512), (500, 500), 32, 64, 128, 256, 512, droprate=0.5, Norm=torch.nn.BatchNorm2d)
-    model.load_state_dict(torch.load(chkpt))
+    model.load_state_dict(torch.load(chkpt, map_location='cpu'))
     model.eval()
+
+    # evaluate metrics on the fly
+    dice_sc, px_acc = Dice_Score(), Pixel_Accuracy((500, 500))
 
     # make predictions and write images and masks to disk as png files
     with torch.no_grad():
@@ -59,6 +63,8 @@ def main():
             img, ground_truth = composed([img, ground_truth])
             # prediction shape (1, 3, 500, 500)
             pred = model(img.unsqueeze(0))
+            dice, pp_acc = dice_sc(pred, ground_truth.unsqueeze(0)), px_acc(pred, ground_truth.unsqueeze(0))
+            print(f"Dice Score: {dice}, PP-Accuracy: {pp_acc}")
             # mask shape (1, 500, 500) 
             mask = (torch.argmax(F.softmax(pred, dim=1), dim=1).squeeze(0).numpy() / 2 * 255).astype(np.uint8)
             # prep image for writing, shape (1, 3, 512, 512)
